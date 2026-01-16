@@ -10,6 +10,22 @@ export interface Contact {
   last_message_at: string | null;
 }
 
+export interface Profile {
+  id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
+export interface ChatRequest {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+  sender_profile?: Profile;
+}
+
 export interface DirectMessage {
   id: string;
   sender_id: string;
@@ -41,6 +57,102 @@ export async function getContacts() {
   return contacts as Contact[];
 }
 
+export async function searchProfiles(query: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
+    .limit(10);
+
+  if (error) throw error;
+  return data as Profile[];
+}
+
+export async function sendChatRequest(receiverId: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("chat_requests")
+    .insert({
+      sender_id: user.id,
+      receiver_id: receiverId,
+      status: 'pending'
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getPendingRequests() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("chat_requests")
+    .select(`
+      *,
+      sender_profile:profiles!chat_requests_sender_id_fkey(*)
+    `)
+    .eq("receiver_id", user.id)
+    .eq("status", "pending");
+
+  if (error) throw error;
+  return data as ChatRequest[];
+}
+
+export async function respondToRequest(requestId: string, status: 'accepted' | 'rejected') {
+  const supabase = createClient();
+
+  // 1. Update request status
+  const { data: request, error: updateError } = await supabase
+    .from("chat_requests")
+    .update({ status })
+    .eq("id", requestId)
+    .select()
+    .single();
+
+  if (updateError) throw updateError;
+
+  // 2. If accepted, create contact entries for BOTH users
+  if (status === 'accepted') {
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (!currentUser) throw new Error("Not authenticated");
+
+    // Get profiles for both
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("*")
+      .in("id", [request.sender_id, request.receiver_id]);
+
+    const senderProfile = profiles?.find(p => p.id === request.sender_id);
+    const receiverProfile = profiles?.find(p => p.id === request.receiver_id);
+
+    // Create contact for receiver (User B adding User A)
+    await supabase.from("contacts").insert({
+      user_id: currentUser.id,
+      contact_user_id: request.sender_id,
+      contact_name: senderProfile?.full_name || senderProfile?.username || "Unknown",
+      contact_avatar_url: senderProfile?.avatar_url
+    });
+
+    // Create contact for sender (User A adding User B)
+    await supabase.from("contacts").insert({
+      user_id: request.sender_id,
+      contact_user_id: currentUser.id,
+      contact_name: receiverProfile?.full_name || receiverProfile?.username || "Unknown",
+      contact_avatar_url: receiverProfile?.avatar_url
+    });
+  }
+
+  return request;
+}
+
 export async function addContact(
   contactUserEmail: string,
   contactName: string
@@ -54,12 +166,11 @@ export async function addContact(
     throw new Error("User not authenticated");
   }
 
-  // For now, create a contact (in real app, would fetch actual user ID by email)
   const { data, error } = await supabase
     .from("contacts")
     .insert({
       user_id: user.id,
-      contact_user_id: crypto.randomUUID(), // Placeholder - should be real user ID
+      contact_user_id: crypto.randomUUID(),
       contact_name: contactName,
       contact_email: contactUserEmail,
     })
@@ -80,7 +191,6 @@ export async function getDirectMessages(contactId: string) {
     throw new Error("User not authenticated");
   }
 
-  // Get contact to find other user ID
   const { data: contact, error: contactError } = await supabase
     .from("contacts")
     .select("contact_user_id")
@@ -192,3 +302,4 @@ export async function subscribeToMessages(
 
   return subscription;
 }
+
