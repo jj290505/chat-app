@@ -43,8 +43,7 @@ interface Message {
 
 export default function ChatArea() {
     const [messages, setMessages] = useState<Message[]>([
-        { id: 1, sender: "Alice Thompson", role: "user", content: "Hey! Did you check the new AI integration?", time: "10:15 AM" },
-        { id: 4, sender: "Nexus AI", role: "assistant", content: "Hello! I am Nexus AI. I can assist you with your conversation or provide information directly. Just mention me!", time: "10:18 AM" },
+        { id: 1, sender: "Nexus AI", role: "assistant", content: "Hello! I am Nexus AI. I can assist you with your conversation or provide information directly. Just mention me!", time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
     ])
     const [isTyping, setIsTyping] = useState(false)
     const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
@@ -116,8 +115,7 @@ export default function ChatArea() {
             await deleteConversation(currentConversationId)
             // Reset chat to initial state
             setMessages([
-                { id: 1, sender: "Alice Thompson", role: "user", content: "Hey! Did you check the new AI integration?", time: "10:15 AM" },
-                { id: 4, sender: "Nexus AI", role: "assistant", content: "Hello! I am Nexus AI. I can assist you with your conversation or provide information directly. Just mention me!", time: "10:18 AM" },
+                { id: 1, sender: "Nexus AI", role: "assistant", content: "Hello! I am Nexus AI. I can assist you with your conversation or provide information directly. Just mention me!", time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
             ])
             setCurrentConversationId(null)
             conversationStartedRef.current = false
@@ -230,12 +228,12 @@ export default function ChatArea() {
             {/* Chat Header */}
             <div className="h-16 border-b flex items-center justify-between px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 flex-shrink-0">
                 <div className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9">
-                        <AvatarFallback>AT</AvatarFallback>
-                    </Avatar>
+                    <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-white shadow-lg ring-2 ring-primary/20">
+                        <span className="font-bold text-xs">AI</span>
+                    </div>
                     <div>
-                        <p className="text-sm font-semibold">Alice Thompson</p>
-                        <p className="text-[10px] text-green-500 font-medium">Online</p>
+                        <p className="text-sm font-semibold text-foreground/90">Nexus AI</p>
+                        <p className="text-[10px] text-primary font-medium animate-pulse">Advanced Intelligence</p>
                     </div>
                 </div>
 
