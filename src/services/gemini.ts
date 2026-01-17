@@ -28,7 +28,7 @@ export async function getGeminiResponseStream(
     ];
 
     const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:streamGenerateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1/models/gemini-pro:streamGenerateContent?key=${apiKey}`,
         {
             method: "POST",
             headers: {
