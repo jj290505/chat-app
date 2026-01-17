@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { getContacts, Contact } from "@/services/contact"
 import { getCurrentUser, signInWithGoogle, logout } from "@/services/auth"
 import { listConversations, Conversation } from "@/services/conversation"
+import { createClient } from "@/lib/supabase/client"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -71,7 +72,31 @@ export default function ContactsSidebar({
     loadContacts()
     loadAiConversations()
     loadPendingCount()
-  }, [])
+
+    // Subscribe to real-time contact updates
+    const supabase = createClient()
+    const channel = supabase
+      .channel('contacts-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'contacts',
+          filter: `user_id=eq.${user?.id}`
+        },
+        (payload) => {
+          console.log('[Realtime] New contact added:', payload)
+          loadContacts()
+          loadPendingCount()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [user?.id])
 
   const loadPendingCount = async () => {
     try {
