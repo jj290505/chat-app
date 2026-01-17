@@ -73,10 +73,7 @@ export async function updateProfile(updates: { username?: string; full_name?: st
 
   const { data, error } = await supabase
     .from("profiles")
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updates)
     .eq("id", user.id)
     .select()
     .single();
