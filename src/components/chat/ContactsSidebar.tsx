@@ -41,6 +41,7 @@ export default function ContactsSidebar({
   const [searchTerm, setSearchTerm] = useState("")
   const [user, setUser] = useState<{ id: string; name: string; email: string; avatar_url?: string | null; username?: string } | null>(null)
   const [activeTab, setActiveTab] = useState("ai")
+  const [pendingRequestCount, setPendingRequestCount] = useState(0)
 
   const loadContacts = async () => {
     try {
@@ -69,7 +70,18 @@ export default function ContactsSidebar({
   useEffect(() => {
     loadContacts()
     loadAiConversations()
+    loadPendingCount()
   }, [])
+
+  const loadPendingCount = async () => {
+    try {
+      const { getPendingRequests } = await import("@/services/contact")
+      const requests = await getPendingRequests()
+      setPendingRequestCount(requests.length)
+    } catch (error) {
+      console.error("Error loading pending count:", error)
+    }
+  }
 
   const loadUser = async () => {
     const userData = await getCurrentUser()
@@ -115,9 +127,14 @@ export default function ContactsSidebar({
               <MessageCircle className="h-3.5 w-3.5" />
               Contacts
             </TabsTrigger>
-            <TabsTrigger value="requests" className="text-xs gap-2">
+            <TabsTrigger value="requests" className="text-xs gap-2 relative">
               <Bell className="h-3.5 w-3.5" />
               Reqs
+              {pendingRequestCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 bg-destructive text-destructive-foreground text-[9px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                  {pendingRequestCount > 9 ? '9+' : pendingRequestCount}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
         </div>

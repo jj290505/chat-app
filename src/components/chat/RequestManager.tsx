@@ -59,40 +59,42 @@ export default function RequestManager({ onStatusChange }: RequestManagerProps) 
         <ScrollArea className="h-full">
             <div className="space-y-3 p-1">
                 {requests.map((request) => (
-                    <div key={request.id} className="flex items-center justify-between gap-3 p-3 bg-card border rounded-xl shadow-sm">
-                        <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10">
+                    <div key={request.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-card border rounded-xl shadow-sm">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <Avatar className="h-10 w-10 shrink-0">
                                 <AvatarFallback className="bg-primary/10 text-primary">
                                     {request.sender_profile?.username[0].toUpperCase() || "?"}
                                 </AvatarFallback>
                             </Avatar>
-                            <div className="text-left">
-                                <p className="text-sm font-semibold">@{request.sender_profile?.username}</p>
+                            <div className="text-left min-w-0 flex-1">
+                                <p className="text-sm font-semibold truncate">@{request.sender_profile?.username}</p>
                                 <p className="text-[10px] text-muted-foreground">wants to chat</p>
                             </div>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex gap-2 w-full sm:w-auto">
                             <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 sm:flex-none h-9 text-destructive hover:bg-destructive/10 border-destructive/20"
                                 onClick={() => handleResponse(request.id, 'rejected')}
                                 disabled={processingId === request.id}
                             >
-                                <X className="h-4 w-4" />
+                                <X className="h-4 w-4 mr-1" />
+                                <span className="text-xs">Decline</span>
                             </Button>
                             <Button
-                                size="icon"
+                                size="sm"
                                 variant="default"
-                                className="h-8 w-8"
+                                className="flex-1 sm:flex-none h-9"
                                 onClick={() => handleResponse(request.id, 'accepted')}
                                 disabled={processingId === request.id}
                             >
                                 {processingId === request.id ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                                 ) : (
-                                    <Check className="h-4 w-4" />
+                                    <Check className="h-4 w-4 mr-1" />
                                 )}
+                                <span className="text-xs">Accept</span>
                             </Button>
                         </div>
                     </div>
