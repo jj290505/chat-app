@@ -28,30 +28,18 @@ export async function getChatResponseStream(
     userName: string = "User",
     conversationId?: string
 ) {
-    const now = new Date();
-    const dateTime = now.toLocaleString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-    });
+    // Parallelize pre-stream lookups
+    const [affairsContext, brainResults] = await Promise.all([
+        getCurrentAffairsContext(),
+        searchKnowledge(currentMessage, conversationId, 3).catch(err => {
+            console.error("Error searching brain knowledge:", err);
+            return [];
+        })
+    ]);
 
-    const affairsContext = await getCurrentAffairsContext();
-
-    // Search for relevant "Brain Knowledge"
-    let brainKnowledge = "";
-    try {
-        const results = await searchKnowledge(currentMessage, conversationId, 3);
-        if (results && results.length > 0) {
-            brainKnowledge = results.map(r => `- ${r.content}`).join("\n");
-        }
-    } catch (error) {
-        console.error("Error searching brain knowledge:", error);
-    }
+    const brainKnowledge = brainResults.length > 0
+        ? brainResults.map(r => `- ${r.content}`).join("\n")
+        : "";
 
     const systemPrompt = `You are Nexus AI, a professional and highly focused AI assistant powered by a powerful large language model. 
 
@@ -71,8 +59,16 @@ ${brainKnowledge ? `### Brain Knowledge (Use this for your answer):\n${brainKnow
 
 User Information:
 - Current User: ${userName}
-- Current Time: ${dateTime}
-- Location/Timezone context: ${affairsContext}`;
+- Current Time: ${new Date().toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    })}
+- Context: ${affairsContext}`;
 
     const messages = [
         {
