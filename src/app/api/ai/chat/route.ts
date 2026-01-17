@@ -1,9 +1,10 @@
 import { getChatResponseStream } from "@/services/ai";
 import { NextResponse } from "next/server";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+    console.log("AI Chat Request Started...");
     try {
         const { messages, currentMessage, userName, conversationId } = await req.json();
 

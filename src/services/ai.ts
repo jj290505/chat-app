@@ -28,6 +28,7 @@ export async function getChatResponseStream(
     userName: string = "User",
     conversationId?: string
 ) {
+    console.log("Starting AI response stream for:", userName);
     // Parallelize pre-stream lookups
     const [affairsContext, brainResults] = await Promise.all([
         getCurrentAffairsContext(),
@@ -99,6 +100,8 @@ User Information:
             stream: true,
         }),
     });
+
+    console.log("OpenRouter Response Status:", response.status);
 
     if (!response.ok) {
         const error = await response.text();

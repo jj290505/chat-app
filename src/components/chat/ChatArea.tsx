@@ -209,21 +209,26 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
                 let accumulatedContent = ""
 
                 if (reader) {
-                    while (true) {
-                        const { done, value } = await reader.read()
-                        if (done) break
+                    try {
+                        while (true) {
+                            const { done, value } = await reader.read()
+                            if (done) break
 
-                        const chunk = decoder.decode(value)
-                        accumulatedContent += chunk
+                            const chunk = decoder.decode(value, { stream: true })
+                            accumulatedContent += chunk
 
-                        // Hide loading indicator as soon as we get the first chunk
-                        if (accumulatedContent.length > 0) {
-                            setIsTyping(false)
+                            // Hide loading indicator as soon as we get the first chunk
+                            if (accumulatedContent.length > 0) {
+                                setIsTyping(false)
+                            }
+
+                            setMessages(prev => prev.map(m =>
+                                m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+                            ))
                         }
-
-                        setMessages(prev => prev.map(m =>
-                            m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
-                        ))
+                    } finally {
+                        setIsTyping(false)
+                        reader.releaseLock()
                     }
 
                     // Save AI response to conversation
