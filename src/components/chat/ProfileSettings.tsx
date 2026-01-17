@@ -76,7 +76,11 @@ export default function ProfileSettings({ trigger, onUpdate }: ProfileSettingsPr
 
             setSuccess(true)
             onUpdate?.()
-            setTimeout(() => setOpen(false), 1500)
+
+            // Reload page to update UI
+            setTimeout(() => {
+                window.location.reload()
+            }, 1000)
         } catch (err: any) {
             setError(err.message || "Failed to update profile. Username might already be taken.")
         } finally {
