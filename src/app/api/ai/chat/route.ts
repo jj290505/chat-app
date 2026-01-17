@@ -4,7 +4,6 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-    console.log("AI Chat Request Started...");
     try {
         const { messages, currentMessage, userName, conversationId } = await req.json();
 
@@ -25,15 +24,21 @@ export async function POST(req: Request) {
         const stream = await getChatResponseStream(messages || [], currentMessage, userName || "User", conversationId);
 
         const encoder = new TextEncoder();
+
         const customStream = new ReadableStream({
             async start(controller) {
-                for await (const chunk of stream) {
-                    if (chunk.choices[0]?.delta?.content) {
-                        const text = chunk.choices[0].delta.content;
-                        controller.enqueue(encoder.encode(text));
+                try {
+                    for await (const chunk of stream) {
+                        if (chunk.choices[0]?.delta?.content) {
+                            const text = chunk.choices[0].delta.content;
+                            controller.enqueue(encoder.encode(text));
+                        }
                     }
+                } catch (err) {
+                    console.error("Error during stream iteration:", err);
+                } finally {
+                    controller.close();
                 }
-                controller.close();
             },
         });
 

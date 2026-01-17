@@ -159,8 +159,8 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
 
         if (shouldTriggerAi) {
             setIsTyping(true)
+            let actualConversationId = currentConversationId
             try {
-                // Create conversation on first AI message
                 if (!currentConversationId && !conversationStartedRef.current) {
                     conversationStartedRef.current = true
                     const conv = await saveConversation("AI Chat", [
@@ -170,7 +170,9 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
                         }
                     ])
                     setCurrentConversationId(conv.id)
+                    actualConversationId = conv.id
                 } else if (currentConversationId) {
+                    actualConversationId = currentConversationId
                     // Add user message to existing conversation
                     await addMessageToConversation(currentConversationId, {
                         role: "user",
@@ -185,7 +187,7 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
                         messages: messages.map(m => ({ role: m.role, content: m.content })),
                         currentMessage: content.replace(/@ai/gi, "").trim(),
                         userName: userName,
-                        conversationId: currentConversationId || undefined
+                        conversationId: actualConversationId || undefined
                     })
                 })
 
@@ -371,10 +373,23 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
                                                 : msg.role === "assistant"
                                                     ? "bg-muted/50 border border-primary/20 text-foreground rounded-bl-none shadow-[0_0_10px_rgba(var(--primary),0.05)]"
                                                     : "bg-muted text-foreground rounded-bl-none",
-                                            msg.isStreaming && "animate-pulse"
+                                            msg.isStreaming && "transition-all duration-300"
                                         )}>
-                                            {msg.content}
-                                            {msg.isStreaming && <span className="inline-block w-1.5 h-4 ml-1 bg-primary/40 animate-pulse align-middle" />}
+                                            {msg.content === "" && msg.role === "assistant" ? (
+                                                <div className="flex items-center gap-2 py-1">
+                                                    <span className="text-muted-foreground italic font-medium">Neural processing</span>
+                                                    <span className="flex gap-1">
+                                                        <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                                        <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                                        <span className="w-1 h-1 bg-primary rounded-full animate-bounce" />
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    {msg.content}
+                                                    {msg.isStreaming && <span className="inline-block w-1.5 h-4 ml-1 bg-primary/40 animate-pulse align-middle" />}
+                                                </>
+                                            )}
                                         </div>
                                         <span className="text-[10px] text-muted-foreground mt-1 px-1">
                                             {msg.time} {msg.sent && "• Delivered"}
@@ -382,16 +397,7 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
                                     </div>
                                 </div>
                             ))}
-                            {isTyping && (
-                                <div className="flex items-center gap-3">
-                                    <Avatar className="h-8 w-8 shrink-0">
-                                        <AvatarFallback>AI</AvatarFallback>
-                                    </Avatar>
-                                    <div className="bg-muted/50 border border-primary/20 rounded-2xl px-4 py-2.5 rounded-bl-none">
-                                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                                    </div>
-                                </div>
-                            )}
+                            {/* Removed legacy typing spinner - now handled inside message bubble */}
                         </div>
                     </ScrollArea>
 

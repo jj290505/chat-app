@@ -28,14 +28,16 @@ export async function getChatResponseStream(
     userName: string = "User",
     conversationId?: string
 ) {
-    console.log("Starting AI response stream for:", userName);
     // Parallelize pre-stream lookups
     const [affairsContext, brainResults] = await Promise.all([
         getCurrentAffairsContext(),
-        searchKnowledge(currentMessage, conversationId, 3).catch(err => {
-            console.error("Error searching brain knowledge:", err);
-            return [];
-        })
+        // Lazy Brain Search: Skip search for very short messages to save TTFB
+        (currentMessage.length > 10)
+            ? searchKnowledge(currentMessage, conversationId, 3).catch(err => {
+                console.error("Error searching brain knowledge:", err);
+                return [];
+            })
+            : Promise.resolve([])
     ]);
 
     const brainKnowledge = brainResults.length > 0
@@ -100,8 +102,6 @@ User Information:
             stream: true,
         }),
     });
-
-    console.log("OpenRouter Response Status:", response.status);
 
     if (!response.ok) {
         const error = await response.text();
