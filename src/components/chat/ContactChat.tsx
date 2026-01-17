@@ -146,6 +146,21 @@ export default function ContactChat({ contact, onToggleSidebar }: ContactChatPro
     if ((!content.trim() && !mediaFile) || !contact.contact_user_id) return
 
     setSending(true)
+
+    // Optimistic UI update - show message immediately
+    const tempMessage: Message = {
+      id: `temp-${Date.now()}`,
+      sender_id: userId,
+      receiver_id: contact.contact_user_id,
+      content: content.trim(),
+      created_at: new Date().toISOString(),
+      isOwn: true,
+      senderName: "You"
+    }
+
+    setMessages(prev => [...prev, tempMessage])
+    setMessageInput("")
+
     try {
       let mediaUrl = null;
       let mediaType = null;
@@ -155,10 +170,16 @@ export default function ContactChat({ contact, onToggleSidebar }: ContactChatPro
         mediaType = mediaFile.type;
       }
 
-      await sendDirectMessage(contact.contact_user_id, content, mediaUrl, mediaType)
-      setMessageInput("")
+      const sentMessage = await sendDirectMessage(contact.contact_user_id, content, mediaUrl, mediaType)
+
+      // Replace temp message with real one
+      setMessages(prev => prev.map(msg =>
+        msg.id === tempMessage.id ? { ...sentMessage, isOwn: true, senderName: "You" } : msg
+      ))
     } catch (error) {
       console.error("Error sending message:", error)
+      // Remove temp message on error
+      setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id))
     } finally {
       setSending(false)
     }

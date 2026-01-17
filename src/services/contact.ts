@@ -304,26 +304,52 @@ export async function uploadFile(file: File) {
 }
 
 export async function subscribeToMessages(
-  contactId: string,
+  contactUserId: string,
   onNewMessage: (message: DirectMessage) => void
 ) {
   const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const subscription = supabase
-    .channel(`direct_messages:${contactId}`)
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  // Subscribe to messages where either:
+  // 1. Current user is sender and contact is receiver
+  // 2. Contact is sender and current user is receiver
+  const channel = supabase
+    .channel(`direct_messages:${user.id}:${contactUserId}`)
     .on(
       "postgres_changes",
       {
         event: "INSERT",
         schema: "public",
         table: "direct_messages",
+        filter: `sender_id=eq.${contactUserId},receiver_id=eq.${user.id}`,
       },
       (payload) => {
+        console.log("[Realtime] New message received:", payload);
         onNewMessage(payload.new as DirectMessage);
       }
     )
-    .subscribe();
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "direct_messages",
+        filter: `sender_id=eq.${user.id},receiver_id=eq.${contactUserId}`,
+      },
+      (payload) => {
+        console.log("[Realtime] Message sent confirmed:", payload);
+        onNewMessage(payload.new as DirectMessage);
+      }
+    )
+    .subscribe((status) => {
+      console.log("[Realtime] Subscription status:", status);
+    });
 
-  return subscription;
+  return channel;
 }
-
