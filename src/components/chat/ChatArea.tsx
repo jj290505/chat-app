@@ -234,8 +234,8 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
                     }
 
                     // Save AI response to conversation
-                    if (currentConversationId) {
-                        await addMessageToConversation(currentConversationId, {
+                    if (actualConversationId) {
+                        await addMessageToConversation(actualConversationId, {
                             role: "assistant",
                             content: accumulatedContent
                         })
