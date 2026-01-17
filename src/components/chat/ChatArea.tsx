@@ -223,14 +223,14 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
                             const chunk = decoder.decode(value, { stream: true })
                             accumulatedContent += chunk
 
-                            // Hide loading indicator as soon as we get the first chunk
-                            if (accumulatedContent.length > 0) {
-                                setIsTyping(false)
-                            }
-
                             setMessages(prev => prev.map(m =>
                                 m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
                             ))
+
+                            // Hide loading indicator after first chunk
+                            if (accumulatedContent.length > 0 && isTyping) {
+                                setIsTyping(false)
+                            }
                         }
                     } finally {
                         setIsTyping(false)

@@ -61,11 +61,11 @@ export default function ProfileSettings({ trigger, onUpdate }: ProfileSettingsPr
 
         try {
             // Simple validation
-            if (formData.username.length < 3) {
-                throw new Error("Username must be at least 3 characters long")
+            if (formData.username.length < 2) {
+                throw new Error("Username must be at least 2 characters long")
             }
-            if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
-                throw new Error("Username can only contain letters, numbers, and underscores")
+            if (!/^[a-zA-Z0-9._-]+$/.test(formData.username)) {
+                throw new Error("Username can only contain letters, numbers, dots, hyphens, and underscores")
             }
 
             await updateProfile({
