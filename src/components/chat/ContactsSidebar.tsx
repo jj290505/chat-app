@@ -72,8 +72,12 @@ export default function ContactsSidebar({
     loadContacts()
     loadAiConversations()
     loadPendingCount()
+  }, [])
 
-    // Subscribe to real-time contact updates
+  // Separate effect for real-time contact updates (after user is loaded)
+  useEffect(() => {
+    if (!user?.id) return
+
     const supabase = createClient()
     const channel = supabase
       .channel('contacts-changes')
@@ -83,7 +87,7 @@ export default function ContactsSidebar({
           event: 'INSERT',
           schema: 'public',
           table: 'contacts',
-          filter: `user_id=eq.${user?.id}`
+          filter: `user_id=eq.${user.id}`
         },
         (payload) => {
           console.log('[Realtime] New contact added:', payload)
@@ -91,9 +95,12 @@ export default function ContactsSidebar({
           loadPendingCount()
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('[Realtime] Contact subscription status:', status)
+      })
 
     return () => {
+      console.log('[Realtime] Unsubscribing from contacts')
       channel.unsubscribe()
     }
   }, [user?.id])
