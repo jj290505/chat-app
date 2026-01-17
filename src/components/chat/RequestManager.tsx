@@ -36,6 +36,7 @@ export default function RequestManager({ onStatusChange }: RequestManagerProps) 
         try {
             await respondToRequest(requestId, status)
             setRequests((prev) => prev.filter(r => r.id !== requestId))
+            // Trigger contact list reload
             onStatusChange?.()
         } catch (error) {
             console.error("Error responding to request:", error)

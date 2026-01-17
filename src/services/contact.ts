@@ -147,20 +147,31 @@ export async function respondToRequest(requestId: string, status: 'accepted' | '
     const receiverProfile = profiles?.find(p => p.id === request.receiver_id);
 
     // Create contact for receiver (User B adding User A)
-    await supabase.from("contacts").insert({
+    // Create contact for receiver (User B adding User A)
+    const { error: receiverContactError } = await supabase.from("contacts").insert({
       user_id: currentUser.id,
       contact_user_id: request.sender_id,
       contact_name: senderProfile?.full_name || senderProfile?.username || "Unknown",
+      contact_email: senderProfile?.id || "",
       contact_avatar_url: senderProfile?.avatar_url
     });
 
+    if (receiverContactError) {
+      console.error("Error creating receiver contact:", receiverContactError);
+    }
+
     // Create contact for sender (User A adding User B)
-    await supabase.from("contacts").insert({
+    const { error: senderContactError } = await supabase.from("contacts").insert({
       user_id: request.sender_id,
       contact_user_id: currentUser.id,
       contact_name: receiverProfile?.full_name || receiverProfile?.username || "Unknown",
+      contact_email: receiverProfile?.id || "",
       contact_avatar_url: receiverProfile?.avatar_url
     });
+
+    if (senderContactError) {
+      console.error("Error creating sender contact:", senderContactError);
+    }
   }
 
   return request;

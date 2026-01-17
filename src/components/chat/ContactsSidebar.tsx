@@ -273,7 +273,10 @@ export default function ContactsSidebar({
         </TabsContent>
 
         <TabsContent value="requests" className="flex-1 mt-0 p-4 h-full overflow-hidden">
-          <RequestManager onStatusChange={loadContacts} />
+          <RequestManager onStatusChange={() => {
+            loadContacts()
+            loadPendingCount()
+          }} />
         </TabsContent>
       </Tabs>
 
