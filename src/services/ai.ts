@@ -1,4 +1,5 @@
 import { searchKnowledge } from "./knowledge";
+import { getGeminiResponseStream } from "./gemini";
 
 export interface ChatMessage {
     role: "user" | "assistant" | "system";
@@ -28,6 +29,9 @@ export async function getChatResponseStream(
     userName: string = "User",
     conversationId?: string
 ) {
+    // Check if using direct Gemini API
+    const useDirectGemini = !!process.env.GOOGLE_GEMINI_API_KEY;
+
     // Parallelize pre-stream lookups
     const [affairsContext, brainResults] = await Promise.all([
         getCurrentAffairsContext(),
@@ -73,32 +77,28 @@ User Information:
     })}
 - Context: ${affairsContext}`;
 
-    const messages = [
-        {
-            role: "system" as const,
-            content: systemPrompt,
-        },
-        ...history.map((msg) => ({
-            role: msg.role,
-            content: msg.content,
-        })),
-        {
-            role: "user" as const,
-            content: currentMessage,
-        },
+    const messages: ChatMessage[] = [
+        { role: "system", content: systemPrompt },
+        ...history,
+        { role: "user", content: currentMessage },
     ];
 
+    // Use direct Gemini API if key is available
+    if (useDirectGemini) {
+        return await getGeminiResponseStream(history, currentMessage, systemPrompt);
+    }
+
+    // Fallback to OpenRouter
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
             "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://nexus-chat.app", // Optional for OpenRouter
-            "X-Title": "Nexus Chat", // Optional for OpenRouter
+            "HTTP-Referer": "https://nexus-chat.app",
+            "X-Title": "Nexus Chat",
         },
         body: JSON.stringify({
-            // AI Model Configuration
-            model: "google/gemini-2.0-flash-exp:free", // Alternative free model
+            model: "google/gemini-2.0-flash-exp:free",
             messages: messages,
             stream: true,
         }),
