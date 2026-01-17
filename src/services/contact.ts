@@ -215,7 +215,7 @@ export async function addContact(
   return data;
 }
 
-export async function getDirectMessages(contactId: string) {
+export async function getDirectMessages(contactUserId: string) {
   const supabase = createClient();
   const {
     data: { user },
@@ -225,23 +225,19 @@ export async function getDirectMessages(contactId: string) {
     throw new Error("User not authenticated");
   }
 
-  const { data: contact, error: contactError } = await supabase
-    .from("contacts")
-    .select("contact_user_id")
-    .eq("id", contactId)
-    .single();
-
-  if (contactError) throw contactError;
-
   const { data: messages, error } = await supabase
     .from("direct_messages")
     .select("*")
     .or(
-      `and(sender_id.eq.${user.id},receiver_id.eq.${contact.contact_user_id}),and(sender_id.eq.${contact.contact_user_id},receiver_id.eq.${user.id})`
+      `and(sender_id.eq.${user.id},receiver_id.eq.${contactUserId}),and(sender_id.eq.${contactUserId},receiver_id.eq.${user.id})`
     )
     .order("created_at", { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    console.error("Error loading messages:", error);
+    throw error;
+  }
+
   return messages as DirectMessage[];
 }
 
