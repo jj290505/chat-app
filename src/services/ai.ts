@@ -97,7 +97,8 @@ User Information:
             "X-Title": "Nexus Chat", // Optional for OpenRouter
         },
         body: JSON.stringify({
-            model: "meta-llama/llama-3.3-70b-instruct:free",
+            // AI Model Configuration
+            model: "google/gemini-2.0-flash-exp:free", // Alternative free model
             messages: messages,
             stream: true,
         }),
