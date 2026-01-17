@@ -379,13 +379,13 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
                                                     : "bg-muted text-foreground rounded-bl-none"
                                         )}>
                                             {msg.content === "" && msg.role === "assistant" && msg.isStreaming ? (
-                                                <div className="flex items-center gap-2 py-1">
-                                                    <span className="text-sm font-medium bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">Neural processing</span>
-                                                    <span className="flex gap-1">
-                                                        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1s' }} />
-                                                        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '1s' }} />
-                                                        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '1s' }} />
-                                                    </span>
+                                                <div className="flex items-center gap-3 py-2">
+                                                    <div className="flex gap-1.5">
+                                                        <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '0.8s' }} />
+                                                        <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s', animationDuration: '0.8s' }} />
+                                                        <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.4s', animationDuration: '0.8s' }} />
+                                                    </div>
+                                                    <span className="text-sm text-muted-foreground italic">Thinking...</span>
                                                 </div>
                                             ) : (
                                                 <>
