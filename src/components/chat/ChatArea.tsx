@@ -149,7 +149,7 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
             sender: "me",
             role: "user",
             content,
-            time: timestamp,
+            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
             sent: true
         }
 
@@ -205,7 +205,7 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
                     sender: "Nexus AI",
                     role: "assistant",
                     content: "",
-                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
                     isStreaming: true
                 }])
 
