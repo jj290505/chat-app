@@ -59,13 +59,23 @@ export async function getContacts() {
 
 export async function searchProfiles(query: string) {
   const supabase = createClient();
+
+  // Get current user to exclude from search
+  const { data: { user } } = await supabase.auth.getUser();
+
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
     .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
+    .neq('id', user?.id || '') // Exclude current user
     .limit(10);
 
-  if (error) throw error;
+  if (error) {
+    console.error("Search error:", error);
+    throw error;
+  }
+
+  console.log("Search results for", query, ":", data);
   return data as Profile[];
 }
 

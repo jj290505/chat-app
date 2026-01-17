@@ -70,12 +70,14 @@ export default function ContactChat({ contact, onToggleSidebar }: ContactChatPro
 
   // Load messages and subscribe to real-time updates
   useEffect(() => {
-    if (!userId || !contact.id) return
+    if (!userId || !contact.contact_user_id) return
 
     const loadMessages = async () => {
       try {
         setLoading(true)
-        const messages = await getDirectMessages(contact.id)
+        console.log('[ContactChat] Loading messages for contact:', contact.contact_user_id)
+        const messages = await getDirectMessages(contact.contact_user_id)
+        console.log('[ContactChat] Loaded messages:', messages.length)
         const formattedMessages: Message[] = messages.map((msg) => ({
           ...msg,
           isOwn: msg.sender_id === userId,
@@ -95,7 +97,9 @@ export default function ContactChat({ contact, onToggleSidebar }: ContactChatPro
     let subscription: RealtimeChannel | null = null;
 
     const setupSubscription = async () => {
-      subscription = await subscribeToMessages(contact.id, (newMessage) => {
+      console.log('[ContactChat] Setting up subscription for:', contact.contact_user_id)
+      subscription = await subscribeToMessages(contact.contact_user_id, (newMessage) => {
+        console.log('[ContactChat] New message received:', newMessage)
         setMessages((prev) => [
           ...prev,
           {
@@ -115,7 +119,7 @@ export default function ContactChat({ contact, onToggleSidebar }: ContactChatPro
     return () => {
       subscription?.unsubscribe();
     }
-  }, [userId, contact.id, contact.contact_name])
+  }, [userId, contact.contact_user_id, contact.contact_name])
 
   const handleClearChat = async () => {
     if (!contact.id) return
