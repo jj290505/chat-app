@@ -55,7 +55,7 @@ export async function getGeminiResponseStream(
         throw new Error("No response body from Gemini");
     }
 
-    // Parse Gemini's streaming response
+    // Parse Gemini's Server-Sent Events (SSE) streaming response
     return {
         async *[Symbol.asyncIterator]() {
             const reader = response.body!.getReader();
@@ -73,21 +73,30 @@ export async function getGeminiResponseStream(
 
                     for (const line of lines) {
                         const trimmed = line.trim();
-                        if (!trimmed || trimmed === "[DONE]") continue;
 
-                        try {
-                            const data = JSON.parse(trimmed);
-                            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                        // Skip empty lines and comments
+                        if (!trimmed || trimmed.startsWith(":")) continue;
 
-                            if (text) {
-                                yield {
-                                    choices: [{
-                                        delta: { content: text }
-                                    }]
-                                };
+                        // Parse SSE data lines
+                        if (trimmed.startsWith("data: ")) {
+                            const jsonStr = trimmed.substring(6); // Remove "data: " prefix
+
+                            if (jsonStr === "[DONE]") continue;
+
+                            try {
+                                const data = JSON.parse(jsonStr);
+                                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                                if (text) {
+                                    yield {
+                                        choices: [{
+                                            delta: { content: text }
+                                        }]
+                                    };
+                                }
+                            } catch (e) {
+                                console.error("Error parsing Gemini SSE chunk:", e, jsonStr);
                             }
-                        } catch (e) {
-                            // Skip invalid JSON
                         }
                     }
                 }
