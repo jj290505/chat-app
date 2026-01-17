@@ -55,7 +55,7 @@ export async function getCurrentUser() {
     .from("profiles")
     .select("full_name, email, username, avatar_url")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   return {
     id: user.id,
@@ -76,7 +76,7 @@ export async function updateProfile(updates: { username?: string; full_name?: st
     .update(updates)
     .eq("id", user.id)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
   return data;
