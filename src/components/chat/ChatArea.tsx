@@ -158,6 +158,7 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
         const shouldTriggerAi = isAiMode || content.toLowerCase().includes("@ai")
 
         if (shouldTriggerAi) {
+            console.log("[DEBUG] AI triggered, shouldTriggerAi:", shouldTriggerAi);
             setIsTyping(true)
             let actualConversationId = currentConversationId
             try {
@@ -180,6 +181,7 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
                     })
                 }
 
+                console.log("[DEBUG] Fetching /api/ai/chat with conversationId:", actualConversationId);
                 const response = await fetch("/api/ai/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -191,6 +193,7 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
                     })
                 })
 
+                console.log("[DEBUG] Response status:", response.status, "ok:", response.ok);
                 if (!response.ok) {
                     const data = await response.json()
                     throw new Error(data.error || "Failed to get AI response")
@@ -207,6 +210,7 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
                 }])
 
                 const reader = response.body?.getReader()
+                console.log("[DEBUG] Reader obtained:", !!reader);
                 const decoder = new TextDecoder()
                 let accumulatedContent = ""
 
@@ -246,7 +250,7 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
                     ))
                 }
             } catch (error) {
-                console.error("AI Error:", error)
+                console.error("[DEBUG] AI Error:", error)
                 setIsTyping(false)
             }
         }
@@ -372,22 +376,21 @@ export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaPr
                                                 ? "bg-primary text-primary-foreground rounded-br-none"
                                                 : msg.role === "assistant"
                                                     ? "bg-muted/50 border border-primary/20 text-foreground rounded-bl-none shadow-[0_0_10px_rgba(var(--primary),0.05)]"
-                                                    : "bg-muted text-foreground rounded-bl-none",
-                                            msg.isStreaming && "transition-all duration-300"
+                                                    : "bg-muted text-foreground rounded-bl-none"
                                         )}>
-                                            {msg.content === "" && msg.role === "assistant" ? (
+                                            {msg.content === "" && msg.role === "assistant" && msg.isStreaming ? (
                                                 <div className="flex items-center gap-2 py-1">
-                                                    <span className="text-muted-foreground italic font-medium">Neural processing</span>
+                                                    <span className="text-sm font-medium bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">Neural processing</span>
                                                     <span className="flex gap-1">
-                                                        <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]" />
-                                                        <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]" />
-                                                        <span className="w-1 h-1 bg-primary rounded-full animate-bounce" />
+                                                        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1s' }} />
+                                                        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '1s' }} />
+                                                        <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '1s' }} />
                                                     </span>
                                                 </div>
                                             ) : (
                                                 <>
                                                     {msg.content}
-                                                    {msg.isStreaming && <span className="inline-block w-1.5 h-4 ml-1 bg-primary/40 animate-pulse align-middle" />}
+                                                    {msg.isStreaming && msg.content && <span className="inline-block w-1.5 h-4 ml-1 bg-primary/40 animate-pulse align-middle" />}
                                                 </>
                                             )}
                                         </div>

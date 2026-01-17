@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+    console.log("[SERVER] AI Chat Request received");
     try {
         const { messages, currentMessage, userName, conversationId } = await req.json();
 
