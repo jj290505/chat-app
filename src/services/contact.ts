@@ -93,17 +93,30 @@ export async function getPendingRequests() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const { data, error } = await supabase
+  const { data: requests, error } = await supabase
     .from("chat_requests")
-    .select(`
-      *,
-      sender_profile:profiles!chat_requests_sender_id_fkey(*)
-    `)
+    .select("*")
     .eq("receiver_id", user.id)
     .eq("status", "pending");
 
   if (error) throw error;
-  return data as ChatRequest[];
+
+  if (requests && requests.length > 0) {
+    const senderIds = requests.map(r => r.sender_id);
+    const { data: profiles, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .in("id", senderIds);
+
+    if (profileError) throw profileError;
+
+    return requests.map(r => ({
+      ...r,
+      sender_profile: profiles?.find(p => p.id === r.sender_id)
+    })) as ChatRequest[];
+  }
+
+  return [] as ChatRequest[];
 }
 
 export async function respondToRequest(requestId: string, status: 'accepted' | 'rejected') {

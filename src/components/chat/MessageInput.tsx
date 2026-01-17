@@ -24,7 +24,11 @@ export default function MessageInput({ onSendMessage, className }: MessageInputP
     const [isListening, setIsListening] = useState(false)
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [filePreview, setFilePreview] = useState<string | null>(null)
+    const [suggestion, setSuggestion] = useState("")
+    const [isSuggesting, setIsSuggesting] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const textareaRef = useRef<HTMLTextAreaElement>(null)
+    const abortControllerRef = useRef<AbortController | null>(null)
 
     const handleSend = () => {
         if (!message.trim() && !selectedFile) return
@@ -35,11 +39,61 @@ export default function MessageInput({ onSendMessage, className }: MessageInputP
     }
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" && !e.shiftKey) {
+        if (e.key === "Tab" && suggestion) {
+            e.preventDefault()
+            setMessage(prev => prev + suggestion)
+            setSuggestion("")
+        } else if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault()
             handleSend()
         }
     }
+
+    const fetchSuggestion = async (text: string) => {
+        if (!text || text.length < 5) {
+            setSuggestion("")
+            return
+        }
+
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort()
+        }
+
+        abortControllerRef.current = new AbortController()
+        setIsSuggesting(true)
+
+        try {
+            const response = await fetch("/api/ai/suggest", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text }),
+                signal: abortControllerRef.current.signal
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                setSuggestion(data.suggestion || "")
+            }
+        } catch (err: any) {
+            if (err.name !== 'AbortError') {
+                console.error("Fetch suggestion error:", err)
+            }
+        } finally {
+            setIsSuggesting(false)
+        }
+    }
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (message.trim()) {
+                fetchSuggestion(message)
+            } else {
+                setSuggestion("")
+            }
+        }, 800) // Debounce 800ms
+
+        return () => clearTimeout(timer)
+    }, [message])
 
     const onEmojiClick = (emojiData: any) => {
         setMessage(prev => prev + emojiData.emoji)
@@ -90,8 +144,8 @@ export default function MessageInput({ onSendMessage, className }: MessageInputP
     }
 
     return (
-        <div className="p-4 bg-background border-t">
-            <div className="max-w-4xl mx-auto space-y-3">
+        <div className="p-2 md:p-4 bg-background border-t">
+            <div className="max-w-4xl mx-auto space-y-2 md:space-y-3">
                 {/* File Preview */}
                 {selectedFile && (
                     <div className="flex items-center gap-3 p-2 bg-muted/40 rounded-xl border border-primary/20 animate-in fade-in slide-in-from-bottom-2">
@@ -129,16 +183,16 @@ export default function MessageInput({ onSendMessage, className }: MessageInputP
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/5"
+                        className="h-8 w-8 md:h-9 md:w-9 shrink-0 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/5"
                         onClick={() => fileInputRef.current?.click()}
                     >
-                        <Paperclip className="h-5 w-5" />
+                        <Paperclip className="h-4 w-4 md:h-5 md:w-5" />
                     </Button>
 
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/5">
-                                <Smile className="h-5 w-5" />
+                            <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9 shrink-0 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/5">
+                                <Smile className="h-4 w-4 md:h-5 md:w-5" />
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0 border-none shadow-2xl mr-4 md:mr-0 z-[100]" side="top" align="start" sideOffset={10}>
@@ -153,19 +207,29 @@ export default function MessageInput({ onSendMessage, className }: MessageInputP
                         </PopoverContent>
                     </Popover>
 
-                    <textarea
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder={isAiMode ? "Ask AI anything (@ai)..." : "Type a message..."}
-                        className="flex-1 bg-transparent border-none focus:ring-0 resize-none py-2 text-sm max-h-32 min-h-[40px] placeholder:text-muted-foreground/50"
-                        rows={1}
-                        onInput={(e) => {
-                            const target = e.target as HTMLTextAreaElement
-                            target.style.height = "auto"
-                            target.style.height = `${target.scrollHeight}px`
-                        }}
-                    />
+                    <div className="flex-1 relative">
+                        <textarea
+                            ref={textareaRef}
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder={isAiMode ? "Ask AI anything (@ai)..." : "Type a message..."}
+                            className="w-full bg-transparent border-none focus:ring-0 resize-none py-2 text-sm max-h-32 min-h-[40px] placeholder:text-muted-foreground/50 relative z-10"
+                            rows={1}
+                            onInput={(e) => {
+                                const target = e.target as HTMLTextAreaElement
+                                target.style.height = "auto"
+                                target.style.height = `${target.scrollHeight}px`
+                            }}
+                        />
+                        {suggestion && (
+                            <div className="absolute top-2 left-0 w-full pointer-events-none text-sm text-muted-foreground/30 py-0 px-0 z-0">
+                                <span className="opacity-0 invisible">{message}</span>
+                                <span>{suggestion}</span>
+                                <span className="ml-2 text-[10px] bg-muted px-1 rounded border border-primary/10">Tab</span>
+                            </div>
+                        )}
+                    </div>
 
                     <div className="flex items-center gap-1">
                         <Button
@@ -173,18 +237,18 @@ export default function MessageInput({ onSendMessage, className }: MessageInputP
                             size="icon"
                             onClick={startListening}
                             className={cn(
-                                "h-9 w-9 shrink-0 rounded-xl transition-all",
+                                "h-8 w-8 md:h-9 md:w-9 shrink-0 rounded-xl transition-all",
                                 isListening ? "text-red-500 bg-red-500/10 animate-pulse" : "text-muted-foreground hover:text-primary hover:bg-primary/5"
                             )}
                         >
-                            {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                            {isListening ? <MicOff className="h-4 w-4 md:h-5 md:w-5" /> : <Mic className="h-4 w-4 md:h-5 md:w-5" />}
                         </Button>
 
                         <Button
                             size="icon"
                             onClick={handleSend}
                             className={cn(
-                                "h-9 w-9 shrink-0 rounded-xl transition-all",
+                                "h-8 w-8 md:h-9 md:w-9 shrink-0 rounded-xl transition-all",
                                 (message.trim() || selectedFile) ? "bg-primary text-primary-foreground opacity-100 shadow-lg shadow-primary/20" : "bg-muted text-muted-foreground opacity-50"
                             )}
                             disabled={!message.trim() && !selectedFile}

@@ -5,11 +5,11 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
     try {
-        const { messages, currentMessage, userName } = await req.json();
+        const { messages, currentMessage, userName, conversationId } = await req.json();
 
-        if (!process.env.GROQ_API_KEY) {
+        if (!process.env.OPENROUTER_API_KEY) {
             return NextResponse.json(
-                { error: "GROQ_API_KEY is missing" },
+                { error: "OPENROUTER_API_KEY is missing" },
                 { status: 500 }
             );
         }
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
             );
         }
 
-        const stream = await getChatResponseStream(messages || [], currentMessage, userName || "User");
+        const stream = await getChatResponseStream(messages || [], currentMessage, userName || "User", conversationId);
 
         const encoder = new TextEncoder();
         const customStream = new ReadableStream({

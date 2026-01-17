@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Phone, Video, Info, Trash2, Loader2, Paperclip, MoreVertical } from "lucide-react"
+import { Phone, Video, Info, Trash2, Loader2, Paperclip, MoreVertical, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
@@ -30,6 +30,7 @@ import MessageInput from "./MessageInput"
 
 interface ContactChatProps {
   contact: Contact;
+  onToggleSidebar?: () => void;
 }
 
 interface Message {
@@ -44,7 +45,7 @@ interface Message {
   isOwn?: boolean;
 }
 
-export default function ContactChat({ contact }: ContactChatProps) {
+export default function ContactChat({ contact, onToggleSidebar }: ContactChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [messageInput, setMessageInput] = useState("")
   const [loading, setLoading] = useState(true)
@@ -166,9 +167,17 @@ export default function ContactChat({ contact }: ContactChatProps) {
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
       {/* Chat Header */}
-      <div className="h-16 border-b flex items-center justify-between px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-9 w-9">
+      <div className="h-16 border-b flex items-center justify-between px-4 md:px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 rounded-xl md:hidden text-muted-foreground"
+            onClick={onToggleSidebar}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <Avatar className="h-8 w-8 md:h-9 md:w-9">
             <AvatarFallback>
               {contact.contact_name
                 .split(" ")
@@ -182,14 +191,14 @@ export default function ContactChat({ contact }: ContactChatProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+        <div className="flex items-center gap-1 md:gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9 rounded-full">
             <Phone className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+          <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9 rounded-full hidden sm:flex">
             <Video className="h-4 w-4" />
           </Button>
-          <Separator orientation="vertical" className="h-4 mx-1" />
+          <Separator orientation="vertical" className="h-4 mx-0.5 md:mx-1 hidden sm:flex" />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -238,7 +247,7 @@ export default function ContactChat({ contact }: ContactChatProps) {
 
       {/* Messages Area */}
       <ScrollArea className="flex-1 w-full overflow-hidden" ref={scrollRef}>
-        <div className="max-w-4xl mx-auto space-y-6 p-6">
+        <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 p-4 md:p-6">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />

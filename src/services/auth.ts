@@ -53,7 +53,7 @@ export async function getCurrentUser() {
   // Try to get user profile with full name
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email")
+    .select("full_name, email, username, avatar_url")
     .eq("id", user.id)
     .single();
 
@@ -61,7 +61,28 @@ export async function getCurrentUser() {
     id: user.id,
     email: user.email || "",
     name: profile?.full_name || user.user_metadata?.full_name || "User",
+    username: profile?.username || "",
+    avatar_url: profile?.avatar_url || null,
   };
+}
+
+export async function updateProfile(updates: { username?: string; full_name?: string; avatar_url?: string }) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
 export async function getUserName() {

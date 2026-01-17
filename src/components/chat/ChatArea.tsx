@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Phone, Video, Info, Loader2, Trash2, MoreVertical } from "lucide-react"
+import { Phone, Video, Info, Loader2, Trash2, MoreVertical, Brain, Plus, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -20,6 +20,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import MessageInput from "./MessageInput"
+import BrainManager from "./BrainManager"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import {
@@ -41,55 +42,71 @@ interface Message {
     isStreaming?: boolean;
 }
 
-export default function ChatArea() {
+interface ChatAreaProps {
+    conversationId?: string | null;
+    onToggleSidebar?: () => void;
+}
+
+export default function ChatArea({ conversationId, onToggleSidebar }: ChatAreaProps) {
     const [messages, setMessages] = useState<Message[]>([
         { id: 1, sender: "Nexus AI", role: "assistant", content: "Hello! I am Nexus AI. I can assist you with your conversation or provide information directly. Just mention me!", time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
     ])
     const [isTyping, setIsTyping] = useState(false)
     const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
     const [userName, setUserName] = useState<string>("User")
+    const [isBrainOpen, setIsBrainOpen] = useState(false)
     const scrollRef = useRef<HTMLDivElement>(null)
     const conversationStartedRef = useRef(false)
 
-    // Load user name and last conversation on component mount
+    // Load conversation when conversationId changes
     useEffect(() => {
-        const loadInitialData = async () => {
+        const loadConversationData = async () => {
+            if (!conversationId) {
+                // New Chat state
+                setMessages([
+                    { id: 1, sender: "Nexus AI", role: "assistant", content: "Hello! I am Nexus AI. I can assist you with your conversation or provide information directly. Just mention me!", time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+                ])
+                setCurrentConversationId(null)
+                conversationStartedRef.current = false
+                return
+            }
+
             try {
-                // Load user name
-                const user = await getCurrentUser()
-                if (user?.name) {
-                    setUserName(user.name)
+                // Load user name if not set
+                if (userName === "User") {
+                    const user = await getCurrentUser()
+                    if (user?.name) setUserName(user.name)
                 }
 
-                // Load last conversation
-                const conversations = await listConversations()
-                if (conversations && conversations.length > 0) {
-                    const lastConversation = conversations[0]
-                    setCurrentConversationId(lastConversation.id)
-                    conversationStartedRef.current = true
+                setCurrentConversationId(conversationId)
+                conversationStartedRef.current = true
 
-                    // Load messages from last conversation
-                    const storedMessages = await loadConversation(lastConversation.id)
-                    if (storedMessages && storedMessages.length > 0) {
-                        const formattedMessages: Message[] = storedMessages.map((msg) => ({
-                            id: msg.id || Date.now(),
-                            sender: msg.role === "user" ? "me" : "Nexus AI",
-                            role: msg.role,
-                            content: msg.content,
-                            time: new Date(msg.created_at || "").toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                            }),
-                        }))
-                        setMessages(formattedMessages)
-                    }
+                // Load messages
+                const storedMessages = await loadConversation(conversationId)
+                if (storedMessages && storedMessages.length > 0) {
+                    const formattedMessages: Message[] = storedMessages.map((msg) => ({
+                        id: msg.id || Date.now(),
+                        sender: msg.role === "user" ? "me" : "Nexus AI",
+                        role: msg.role,
+                        content: msg.content,
+                        time: new Date(msg.created_at || "").toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                        }),
+                    }))
+                    setMessages(formattedMessages)
+                } else {
+                    // Empty conversation
+                    setMessages([
+                        { id: 1, sender: "Nexus AI", role: "assistant", content: "Hello! This is a new conversation. How can I help you today?", time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+                    ])
                 }
             } catch (error) {
-                console.error("Error loading initial data:", error)
+                console.error("Error loading conversation data:", error)
             }
         }
-        loadInitialData()
-    }, [])
+        loadConversationData()
+    }, [conversationId])
 
     useEffect(() => {
         // Auto-scroll to bottom when messages update
@@ -167,7 +184,8 @@ export default function ChatArea() {
                     body: JSON.stringify({
                         messages: messages.map(m => ({ role: m.role, content: m.content })),
                         currentMessage: content.replace(/@ai/gi, "").trim(),
-                        userName: userName
+                        userName: userName,
+                        conversationId: currentConversationId || undefined
                     })
                 })
 
@@ -226,26 +244,43 @@ export default function ChatArea() {
     return (
         <div className="flex flex-col h-screen w-full overflow-hidden">
             {/* Chat Header */}
-            <div className="h-16 border-b flex items-center justify-between px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-white shadow-lg ring-2 ring-primary/20">
-                        <span className="font-bold text-xs">AI</span>
+            <div className="h-16 border-b flex items-center justify-between px-4 md:px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 flex-shrink-0">
+                <div className="flex items-center gap-2 md:gap-3">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-xl md:hidden text-muted-foreground"
+                        onClick={onToggleSidebar}
+                    >
+                        <Menu className="h-5 w-5" />
+                    </Button>
+                    <div className="h-8 w-8 md:h-9 md:w-9 rounded-full bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-white shadow-lg ring-2 ring-primary/20">
+                        <span className="font-bold text-[10px] md:text-xs">AI</span>
                     </div>
                     <div>
                         <p className="text-sm font-semibold text-foreground/90">Nexus AI</p>
-                        <p className="text-[10px] text-primary font-medium animate-pulse">Advanced Intelligence</p>
+                        <p className="text-[9px] text-primary font-medium animate-pulse">Advanced Intelligence</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+                <div className="flex items-center gap-1 md:gap-2">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9 rounded-full">
                         <Phone className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9 rounded-full hidden sm:flex">
                         <Video className="h-4 w-4" />
                     </Button>
-                    <Separator orientation="vertical" className="h-4 mx-1" />
-                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+                    <Separator orientation="vertical" className="h-4 mx-0.5 md:mx-1 hidden sm:flex" />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn("h-8 w-8 md:h-9 md:w-9 rounded-full", isBrainOpen && "bg-primary/10 text-primary")}
+                        onClick={() => setIsBrainOpen(!isBrainOpen)}
+                    >
+                        <Brain className="h-4 w-4" />
+                    </Button>
+                    <Separator orientation="vertical" className="h-4 mx-0.5 md:mx-1" />
+                    <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9 rounded-full hidden sm:flex">
                         <Info className="h-4 w-4" />
                     </Button>
                     <Separator orientation="vertical" className="h-4 mx-1" />
@@ -298,58 +333,88 @@ export default function ChatArea() {
                 </div>
             </div>
 
-            {/* Messages Area */}
-            <ScrollArea className="flex-1 w-full overflow-hidden" ref={scrollRef}>
-                <div className="max-w-4xl mx-auto space-y-6 pb-4">
-                    {messages.map((msg) => (
-                        <div
-                            key={msg.id}
-                            className={cn(
-                                "flex items-end gap-3",
-                                msg.sender === "me" ? "flex-row-reverse" : "flex-row"
-                            )}
-                        >
-                            <Avatar className="h-8 w-8 shrink-0">
-                                <AvatarFallback>{msg.sender === "me" ? "ME" : msg.sender === "Nexus AI" ? "AI" : msg.sender[0]}</AvatarFallback>
-                            </Avatar>
+            {/* Main Content Area */}
+            <div className="flex-1 flex overflow-hidden relative">
+                {/* Messages Area */}
+                <div className="flex-1 flex flex-col min-w-0">
+                    <ScrollArea className="flex-1 w-full overflow-hidden" ref={scrollRef}>
+                        <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 pb-4 p-4 md:p-6">
+                            {messages.map((msg) => (
+                                <div
+                                    key={msg.id}
+                                    className={cn(
+                                        "flex items-end gap-3",
+                                        msg.sender === "me" ? "flex-row-reverse" : "flex-row"
+                                    )}
+                                >
+                                    <Avatar className="h-8 w-8 shrink-0">
+                                        <AvatarFallback>{msg.sender === "me" ? "ME" : msg.sender === "Nexus AI" ? "AI" : msg.sender[0]}</AvatarFallback>
+                                    </Avatar>
 
-                            <div className={cn(
-                                "flex flex-col max-w-[80%]",
-                                msg.sender === "me" ? "items-end" : "items-start"
-                            )}>
-                                <div className={cn(
-                                    "rounded-2xl px-4 py-2.5 text-sm shadow-sm",
-                                    msg.sender === "me"
-                                        ? "bg-primary text-primary-foreground rounded-br-none"
-                                        : msg.role === "assistant"
-                                            ? "bg-muted/50 border border-primary/20 text-foreground rounded-bl-none shadow-[0_0_10px_rgba(var(--primary),0.05)]"
-                                            : "bg-muted text-foreground rounded-bl-none",
-                                    msg.isStreaming && "animate-pulse"
-                                )}>
-                                    {msg.content}
-                                    {msg.isStreaming && <span className="inline-block w-1.5 h-4 ml-1 bg-primary/40 animate-pulse align-middle" />}
+                                    <div className={cn(
+                                        "flex flex-col max-w-[80%]",
+                                        msg.sender === "me" ? "items-end" : "items-start"
+                                    )}>
+                                        <div className={cn(
+                                            "rounded-2xl px-4 py-2.5 text-sm shadow-sm",
+                                            msg.sender === "me"
+                                                ? "bg-primary text-primary-foreground rounded-br-none"
+                                                : msg.role === "assistant"
+                                                    ? "bg-muted/50 border border-primary/20 text-foreground rounded-bl-none shadow-[0_0_10px_rgba(var(--primary),0.05)]"
+                                                    : "bg-muted text-foreground rounded-bl-none",
+                                            msg.isStreaming && "animate-pulse"
+                                        )}>
+                                            {msg.content}
+                                            {msg.isStreaming && <span className="inline-block w-1.5 h-4 ml-1 bg-primary/40 animate-pulse align-middle" />}
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground mt-1 px-1">
+                                            {msg.time} {msg.sent && "• Delivered"}
+                                        </span>
+                                    </div>
                                 </div>
-                                <span className="text-[10px] text-muted-foreground mt-1 px-1">
-                                    {msg.time} {msg.sent && "• Delivered"}
-                                </span>
-                            </div>
+                            ))}
+                            {isTyping && (
+                                <div className="flex items-center gap-3">
+                                    <Avatar className="h-8 w-8 shrink-0">
+                                        <AvatarFallback>AI</AvatarFallback>
+                                    </Avatar>
+                                    <div className="bg-muted/50 border border-primary/20 rounded-2xl px-4 py-2.5 rounded-bl-none">
+                                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                    ))}
-                    {isTyping && (
-                        <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8 shrink-0">
-                                <AvatarFallback>AI</AvatarFallback>
-                            </Avatar>
-                            <div className="bg-muted/50 border border-primary/20 rounded-2xl px-4 py-2.5 rounded-bl-none">
-                                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </ScrollArea>
+                    </ScrollArea>
 
-            {/* Input Area */}
-            <MessageInput onSendMessage={handleSendMessage} className="flex-shrink-0" />
+                    {/* Input Area */}
+                    <div className="p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                        <MessageInput onSendMessage={handleSendMessage} className="max-w-4xl mx-auto" />
+                    </div>
+                </div>
+
+                {/* Brain Sidebar Overlay/Panel */}
+                {isBrainOpen && (
+                    <div className={cn(
+                        "fixed inset-y-0 right-0 z-50 w-full sm:w-80 h-full border-l bg-background/95 backdrop-blur-xl animate-in slide-in-from-right duration-300 md:relative md:z-auto",
+                        "shadow-2xl md:shadow-none"
+                    )}>
+                        <div className="h-full flex flex-col">
+                            <div className="flex items-center justify-between p-4 border-b">
+                                <h3 className="text-sm font-bold flex items-center gap-2">
+                                    <Brain className="h-4 w-4 text-primary" />
+                                    Neural Knowledge
+                                </h3>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsBrainOpen(false)}>
+                                    <Plus className="h-4 w-4 rotate-45" />
+                                </Button>
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                                <BrainManager conversationId={currentConversationId} />
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     )
 }
