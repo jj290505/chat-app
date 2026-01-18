@@ -2,18 +2,17 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Zap, Users, Brain, Shield, Cloud, ArrowRight, Sparkles, Star, User } from 'lucide-react';
+import { MessageCircle, Zap, Users, Brain, Shield, Cloud, ArrowRight, Sparkles, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { User as UserType } from '@supabase/supabase-js';
 
 const HologramSphere = dynamic(() => import('./HologramSphere'), {
   ssr: false,
-  loading: () => <div className="fixed inset-0 z-0 bg-[#0F0A1F] flex items-center justify-center text-amber-500 font-mono animate-pulse text-xs tracking-[0.3em]">SYNCHRONIZING NEURAL CORE...</div>
+  loading: () => <div className="w-full h-[500px] flex items-center justify-center text-indigo-500 font-mono animate-pulse">BOOTING NEXUS CORE...</div>
 });
 
-export default function LandingPage({ user }: { user?: UserType | null }) {
+export default function LandingPage() {
   const fadeIn = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
@@ -31,64 +30,74 @@ export default function LandingPage({ user }: { user?: UserType | null }) {
   return (
     <div className="min-h-screen bg-[#0F0A1F] text-slate-200 selection:bg-amber-500/30 overflow-x-hidden">
       {/* FIXED 3D BACKGROUND */}
-      <div className="fixed inset-0 z-0 lg:pointer-events-auto">
+      <div className="fixed inset-0 z-0 pointer-events-none lg:pointer-events-auto">
         <HologramSphere />
       </div>
 
       {/* Navigation */}
-      <nav className="absolute top-0 left-0 right-0 z-50 bg-transparent py-8">
-        <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
+      <nav className="backdrop-blur-xl bg-[#0F0A1F]/60 border-b border-white/5 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             className="flex items-center gap-3"
           >
-            <span className="text-3xl font-black tracking-tighter text-white">
-              NEXUS
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <MessageCircle className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-2xl font-black tracking-tighter bg-gradient-to-r from-white via-white to-indigo-300 bg-clip-text text-transparent">
+              NEXUS AI
             </span>
           </motion.div>
-
-          <div className="flex items-center gap-1 bg-white/5 backdrop-blur-md rounded-full px-4 md:px-6 py-2 border border-white/10">
-            {['AI Agent', 'Services', 'Tech', 'Industries', 'Company'].map((item) => (
-              <Button key={item} variant="ghost" className="text-slate-400 hover:text-white text-[10px] md:text-xs font-bold px-3 md:px-4 h-8 rounded-full">
-                {item}
-              </Button>
-            ))}
-          </div>
-
           <div className="flex gap-4 items-center">
-            {user ? (
-              <Link href="/chat">
-                <div className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center transition-all group">
-                  <User className="w-5 h-5 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
-                </div>
-              </Link>
-            ) : null}
+            <Link href="/auth">
+              <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-white/5 font-medium transition-all">Sign In</Button>
+            </Link>
+            <Link href="/auth">
+              <Button className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 shadow-xl shadow-amber-500/20 transition-all active:scale-95">
+                Join Now
+              </Button>
+            </Link>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section - Bottom Focused */}
-      <section className="relative min-h-[100vh] flex flex-col justify-end pb-48 px-6 z-10">
-        <div className="max-w-7xl mx-auto text-center space-y-12">
+      {/* Hero Section */}
+      <section className="relative min-h-[90vh] flex items-center justify-center px-6 z-10 overflow-hidden">
+        <div className="max-w-5xl mx-auto text-center space-y-12">
           <motion.div
             initial="initial"
             animate="animate"
             variants={stagger}
-            className="space-y-16"
+            className="space-y-10"
           >
-            <div className="space-y-6">
-              <motion.p variants={fadeIn} className="text-3xl text-slate-400 max-w-3xl mx-auto font-medium tracking-wide">
-                Beyond Intelligence. Pure Neural Synergies.
-              </motion.p>
-            </div>
+            <motion.div
+              variants={fadeIn}
+              className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-black tracking-[0.2em] mb-4 shadow-[0_0_20px_rgba(6,182,212,0.1)]"
+            >
+              <Sparkles className="w-4 h-4 animate-pulse" />
+              <span>NEXUS CORE :: VERSION 4.0 ACTIVE</span>
+            </motion.div>
 
-            <motion.div variants={fadeIn} className="pt-8">
-              <Link href={user ? "/chat" : "/auth"}>
-                <Button className="w-24 h-24 rounded-full bg-white/5 hover:bg-white/10 text-white backdrop-blur-xl border border-white/20 shadow-2xl transition-all flex items-center justify-center p-0 mx-auto group">
-                  <ArrowRight className="w-10 h-10 group-hover:translate-x-2 transition-transform" />
+            <motion.h1 variants={fadeIn} className="text-7xl md:text-8xl lg:text-[10rem] font-black text-white leading-[0.9] tracking-tighter">
+              UNLEASH<br />
+              <span className="bg-gradient-to-b from-white via-cyan-200 to-cyan-500 bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(6,182,212,0.3)]">SYNAPSE</span>
+            </motion.h1>
+
+            <motion.p variants={fadeIn} className="text-xl md:text-2xl text-slate-400 max-w-2xl mx-auto leading-relaxed font-medium">
+              Step into the future of neural-linked communication. Persistent memory meets real-time holographic intelligence.
+            </motion.p>
+
+            <motion.div variants={fadeIn} className="flex flex-wrap gap-6 justify-center pt-8">
+              <Link href="/auth">
+                <Button className="bg-cyan-500 hover:bg-cyan-400 text-black px-16 py-9 text-2xl font-black rounded-3xl shadow-[0_20px_50px_rgba(6,182,212,0.3)] transition-all transform hover:scale-105 active:scale-95 group">
+                  ACTIVATE SYSTEM
+                  <ArrowRight className="w-7 h-7 group-hover:translate-x-3 transition-transform" />
                 </Button>
               </Link>
+              <Button variant="ghost" className="text-white hover:bg-white/5 px-16 py-9 text-2xl font-bold rounded-3xl border border-white/10 backdrop-blur-xl hover:border-cyan-500/50 transition-all">
+                VIEW SPECS
+              </Button>
             </motion.div>
           </motion.div>
         </div>
@@ -106,7 +115,7 @@ export default function LandingPage({ user }: { user?: UserType | null }) {
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
                 icon: <Brain className="w-6 h-6 text-amber-500" />,
@@ -166,7 +175,7 @@ export default function LandingPage({ user }: { user?: UserType | null }) {
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
-          className="relative rounded-[40px] bg-indigo-600 p-24 overflow-hidden text-center"
+          className="relative rounded-[40px] bg-indigo-600 p-12 lg:p-24 overflow-hidden text-center"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-800 opacity-50" />
           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent" />
@@ -179,9 +188,9 @@ export default function LandingPage({ user }: { user?: UserType | null }) {
               Join the thousands who are already chatting with the next generation of AI.
             </p>
             <div className="flex flex-wrap justify-center gap-6 pt-4">
-              <Link href={user ? "/chat" : "/auth"}>
+              <Link href="/auth">
                 <Button className="bg-white text-indigo-600 hover:bg-indigo-50 px-12 py-8 text-xl font-black rounded-2xl shadow-2xl transition-all">
-                  {user ? "Continue to Chat" : "Get Started Now"}
+                  Get Started Now
                 </Button>
               </Link>
             </div>
@@ -192,7 +201,7 @@ export default function LandingPage({ user }: { user?: UserType | null }) {
       {/* Footer */}
       <footer className="border-t border-white/5 bg-[#0A0714] py-20">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-4 gap-12 mb-16">
+          <div className="grid md:grid-cols-4 gap-12 mb-16">
             <div className="col-span-2">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
@@ -228,7 +237,7 @@ export default function LandingPage({ user }: { user?: UserType | null }) {
               </ul>
             </div>
           </div>
-          <div className="pt-8 border-t border-white/5 flex justify-between items-center gap-4 text-slate-600 text-sm">
+          <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-slate-600 text-sm">
             <p>&copy; 2026 Nexus AI. Crafting the future of chat.</p>
             <div className="flex gap-8">
               <a href="#" className="hover:text-white transition">Privacy Policy</a>

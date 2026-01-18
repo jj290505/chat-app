@@ -4,13 +4,12 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-    console.log("[SERVER] AI Chat Request received");
     try {
-        const { messages, currentMessage, userName, conversationId } = await req.json();
+        const { messages, currentMessage, userName } = await req.json();
 
-        if (!process.env.OPENROUTER_API_KEY) {
+        if (!process.env.GROQ_API_KEY) {
             return NextResponse.json(
-                { error: "OPENROUTER_API_KEY is missing" },
+                { error: "GROQ_API_KEY is missing" },
                 { status: 500 }
             );
         }
@@ -22,24 +21,18 @@ export async function POST(req: Request) {
             );
         }
 
-        const stream = await getChatResponseStream(messages || [], currentMessage, userName || "User", conversationId);
+        const stream = await getChatResponseStream(messages || [], currentMessage, userName || "User");
 
         const encoder = new TextEncoder();
-
         const customStream = new ReadableStream({
             async start(controller) {
-                try {
-                    for await (const chunk of stream) {
-                        if (chunk.choices[0]?.delta?.content) {
-                            const text = chunk.choices[0].delta.content;
-                            controller.enqueue(encoder.encode(text));
-                        }
+                for await (const chunk of stream) {
+                    if (chunk.choices[0]?.delta?.content) {
+                        const text = chunk.choices[0].delta.content;
+                        controller.enqueue(encoder.encode(text));
                     }
-                } catch (err) {
-                    console.error("Error during stream iteration:", err);
-                } finally {
-                    controller.close();
                 }
+                controller.close();
             },
         });
 

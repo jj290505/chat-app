@@ -1,35 +1,24 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { createClient } from "@/lib/supabase/client"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
-import { MessageCircle, Plus, LogOut, LogIn, Settings, User, Users, Bell, Brain, Sparkles } from "lucide-react"
+import { MessageCircle, Plus, Menu, X, User, Settings, LogOut, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { getContacts, Contact } from "@/services/contact"
-import { getCurrentUser, signInWithGoogle, logout } from "@/services/auth"
-import { listConversations, Conversation } from "@/services/conversation"
-import { createClient } from "@/lib/supabase/client"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
+import { getContacts, Contact, subscribeToContacts, deleteContact, subscribeToChatRequests, ensureContactExists, markMessagesAsRead, getPendingRequests } from "@/services/contact"
 import UserSearch from "./UserSearch"
 import RequestManager from "./RequestManager"
-import ProfileSettings from "./ProfileSettings"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import UserProfileCard from "./UserProfileCard"
+import LogoutButton from "../auth/LogoutButton"
 
 interface ContactsSidebarProps {
-  onSelectChat: (type: "ai" | "contact", contact?: Contact, conversationId?: string | null) => void;
-  activeChat: { type: "ai" | "contact"; contact?: Contact; conversationId?: string | null } | null;
+  onSelectChat: (type: "ai" | "contact", contact?: Contact) => void;
+  activeChat: { type: "ai" | "contact"; contact?: Contact } | null;
+  onClose?: () => void;
 }
 
 export default function ContactsSidebar({
@@ -37,18 +26,39 @@ export default function ContactsSidebar({
   activeChat,
 }: ContactsSidebarProps) {
   const [contacts, setContacts] = useState<Contact[]>([])
-  const [aiConversations, setAiConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [user, setUser] = useState<{ id: string; name: string; email: string; avatar_url?: string | null; username?: string } | null>(null)
-  const [activeTab, setActiveTab] = useState("ai")
-  const [pendingRequestCount, setPendingRequestCount] = useState(0)
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
+
+  // Use a ref to avoid stale closures in real-time listeners
+  const activeChatRef = useRef(activeChat)
+  useEffect(() => {
+    activeChatRef.current = activeChat
+  }, [activeChat])
 
   const loadContacts = async () => {
     try {
-      setLoading(true)
+      // 1. If we have an active contact chat, mark messages as read FIRST
+      if (activeChat?.type === 'contact' && activeChat.contact) {
+        await markMessagesAsRead(activeChat.contact.contact_user_id)
+      }
+
+      // 2. Fetch contacts (which will now have 0 unread for the active chat)
       const data = await getContacts()
-      setContacts(data)
+
+      // 3. (Extra Safety) Manually ensure active contact has 0 unread in local state
+      const processedData = data.map(contact => {
+        if (activeChat?.type === 'contact' && activeChat.contact?.contact_user_id === contact.contact_user_id) {
+          return { ...contact, unread_count: 0 };
+        }
+        return contact;
+      });
+
+      setContacts(processedData)
+
+      // 4. Also refresh pending requests count
+      const requests = await getPendingRequests()
+      setPendingRequestsCount(requests.length)
     } catch (error) {
       console.error("Error loading contacts:", error)
     } finally {
@@ -56,315 +66,293 @@ export default function ContactsSidebar({
     }
   }
 
-  const loadAiConversations = async () => {
-    try {
-      setLoading(true)
-      const data = await listConversations()
-      setAiConversations(data)
-    } catch (error) {
-      console.error("Error loading AI conversations:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
     loadContacts()
-    loadAiConversations()
-    loadPendingCount()
-  }, [])
 
-  // Separate effect for real-time contact updates (after user is loaded)
-  useEffect(() => {
-    if (!user?.id) return
+    // Subscribe to real-time contact changes
+    let subscription: any = null;
 
-    const supabase = createClient()
-    const channel = supabase
-      .channel('contacts-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'contacts',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('[Realtime] New contact added:', payload)
-          loadContacts()
-          loadPendingCount()
-        }
-      )
-      .subscribe((status) => {
-        console.log('[Realtime] Contact subscription status:', status)
-      })
+    const setupSubscription = async () => {
+      try {
+        subscription = await subscribeToContacts((data) => {
+          // Reload contacts when any change is detected
+          loadContacts();
+        });
+      } catch (error) {
+        console.error("Error setting up contact subscription:", error);
+      }
+    };
+
+    setupSubscription();
+
+    // Global Message Listener to keep 'Last Message' and contact list fresh
+    let messageSubscription: any = null;
+    const setupMessageSubscription = async () => {
+      try {
+        const { data: { user } } = await createClient().auth.getUser();
+        if (!user) return;
+
+        const handleRealtimeUpdate = (msg: any) => {
+          const currentActive = activeChatRef.current;
+          const isIncoming = msg.receiver_id === user.id;
+          const contactId = isIncoming ? msg.sender_id : msg.receiver_id;
+
+          // Determine if this should increment the unread badge
+          const isUnread = isIncoming && (
+            !currentActive ||
+            currentActive.type !== 'contact' ||
+            currentActive.contact?.contact_user_id !== msg.sender_id
+          );
+
+          setContacts(prev => {
+            const contactExists = prev.some(c => c.contact_user_id === contactId);
+            if (!contactExists) {
+              loadContacts(); // Fetch from scratch for new chats
+              return prev;
+            }
+
+            return prev.map(c => {
+              if (c.contact_user_id === contactId) {
+                return {
+                  ...c,
+                  unread_count: isUnread ? (c.unread_count || 0) + 1 : 0,
+                  last_message: msg.content,
+                  last_message_at: msg.created_at
+                };
+              }
+              return c;
+            }).sort((a, b) => {
+              // Priority sorting: contact with the newest message comes first
+              if (a.contact_user_id === contactId) return -1;
+              if (b.contact_user_id === contactId) return 1;
+              const dateA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+              const dateB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+              return dateB - dateA;
+            });
+          });
+
+          // Persistent Sync: If currently chatting, mark as read in database
+          if (isIncoming && currentActive?.type === 'contact' && currentActive.contact?.contact_user_id === msg.sender_id) {
+            markMessagesAsRead(msg.sender_id);
+          }
+        };
+
+        messageSubscription = createClient()
+          .channel(`notifications:${user.id}`)
+          .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "direct_messages" },
+            (payload) => handleRealtimeUpdate(payload.new)
+          )
+          .on(
+            "broadcast",
+            { event: "sidebar_update" },
+            (payload) => handleRealtimeUpdate(payload.payload)
+          )
+          .subscribe();
+      } catch (error) {
+        console.error("Error setting up unified message listener:", error);
+      }
+    };
+    setupMessageSubscription();
+
+    // Also subscribe to chat requests to catch when a sent request is accepted
+    let requestSubscription: any = null;
+    const setupRequestSubscription = async () => {
+      try {
+        requestSubscription = await subscribeToChatRequests(
+          (newReq) => {
+            // Check if it's for me
+            createClient().auth.getUser().then(({ data: { user } }) => {
+              if (user && newReq.receiver_id === user.id) {
+                setPendingRequestsCount(prev => prev + 1);
+              }
+            });
+          },
+          async (updatedRequest) => {
+            // Fetch latest count to be safe when status changes
+            const requests = await getPendingRequests();
+            setPendingRequestsCount(requests.length);
+
+            if (updatedRequest.status === 'accepted') {
+              const { data: { user } } = await createClient().auth.getUser();
+              if (user) {
+                // If I was the sender, I need to ensure I have a contact for the receiver
+                if (updatedRequest.sender_id === user.id) {
+                  await ensureContactExists(updatedRequest.receiver_id);
+                }
+                // If I was the receiver, I need to ensure I have a contact for the sender
+                else if (updatedRequest.receiver_id === user.id) {
+                  await ensureContactExists(updatedRequest.sender_id);
+                }
+                loadContacts();
+              }
+            }
+          }
+        );
+      } catch (error) {
+        console.error("Error setting up request subscription in sidebar:", error);
+      }
+    };
+    setupRequestSubscription();
 
     return () => {
-      console.log('[Realtime] Unsubscribing from contacts')
-      channel.unsubscribe()
-    }
-  }, [user?.id])
-
-  const loadPendingCount = async () => {
-    try {
-      const { getPendingRequests } = await import("@/services/contact")
-      const requests = await getPendingRequests()
-      setPendingRequestCount(requests.length)
-    } catch (error) {
-      console.error("Error loading pending count:", error)
-    }
-  }
-
-  const loadUser = async () => {
-    const userData = await getCurrentUser()
-    if (userData) {
-      setUser({
-        ...userData,
-        name: userData.name || "Guest User"
-      })
-    }
-  }
-
-  useEffect(() => {
-    loadUser()
+      subscription?.unsubscribe();
+      requestSubscription?.unsubscribe();
+      messageSubscription?.unsubscribe();
+    };
   }, [])
+
+  // Reload contacts and clear badges when switching active chat
+  useEffect(() => {
+    if (activeChat?.type === 'contact') {
+      loadContacts();
+    }
+  }, [activeChat?.contact?.id])
 
   const filteredContacts = contacts.filter((contact) =>
     contact.contact_name.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
-    <div className="w-[80vw] md:w-80 border-r flex flex-col h-full bg-background/50 backdrop-blur-xl">
+    <div className="w-auto min-w-[280px] max-w-[320px] md:w-72 border-r flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b space-y-4">
+      <div className="p-4 border-b space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-bold text-xl tracking-tight">Nexus Chat</h2>
-          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-            <Plus className="h-4 w-4" />
-          </Button>
+          <h2 className="font-semibold text-lg">Messages</h2>
         </div>
-
         <UserSearch />
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="ai" className="flex-1 flex flex-col h-full overflow-hidden" onValueChange={setActiveTab}>
+      <Tabs defaultValue="chats" className="flex-1 flex flex-col min-h-0">
         <div className="px-4 py-2 border-b">
-          <TabsList className="w-full grid grid-cols-3 h-9 bg-muted/50 p-1">
-            <TabsTrigger value="ai" className="text-xs gap-2">
-              <Sparkles className="h-3.5 w-3.5" />
-              AI
-            </TabsTrigger>
-            <TabsTrigger value="chats" className="text-xs gap-2">
-              <MessageCircle className="h-3.5 w-3.5" />
-              Contacts
-            </TabsTrigger>
-            <TabsTrigger value="requests" className="text-xs gap-2 relative">
-              <Bell className="h-3.5 w-3.5" />
-              Reqs
-              {pendingRequestCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 w-4 bg-destructive text-destructive-foreground text-[9px] font-bold rounded-full flex items-center justify-center animate-pulse">
-                  {pendingRequestCount > 9 ? '9+' : pendingRequestCount}
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="chats" className="text-xs">Chats</TabsTrigger>
+            <TabsTrigger value="requests" className="text-xs relative">
+              Requests
+              {pendingRequestsCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground animate-in zoom-in duration-300">
+                  {pendingRequestsCount > 99 ? "99+" : pendingRequestsCount}
                 </span>
               )}
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent value="ai" className="flex-1 flex flex-col mt-0 h-full overflow-hidden">
-          {/* New Chat Button */}
-          <div className="px-3 py-4">
+        <TabsContent value="chats" className="flex-1 flex flex-col min-h-0 m-0">
+          {/* AI Assistant */}
+          <div className="px-2 py-2 border-b">
             <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-12 px-4 rounded-xl border-dashed border-primary/20 hover:border-primary/50 hover:bg-primary/5 transition-all group"
-              onClick={() => onSelectChat("ai", undefined, null)}
+              variant="ghost"
+              className={cn(
+                "w-full justify-start gap-3 h-auto py-2 px-3",
+                activeChat?.type === "ai" && "bg-primary/10"
+              )}
+              onClick={() => onSelectChat("ai")}
             >
-              <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                <Plus className="h-4 w-4" />
+              <Avatar className="h-10 w-10">
+                <AvatarFallback>AI</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 text-left">
+                <p className="font-semibold text-sm">Nexus AI</p>
+                <p className="text-xs text-muted-foreground">Your AI Assistant</p>
               </div>
-              <span className="font-semibold text-sm">New AI Conversation</span>
             </Button>
           </div>
 
-          <div className="px-3 pb-2">
-            <div className="text-[10px] text-muted-foreground px-2 uppercase tracking-widest font-bold opacity-50 mb-2">
-              Recent History
-            </div>
-            <Input
-              placeholder="Search history..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-8 bg-muted/30 border-none text-[11px] rounded-lg mb-2"
-            />
-          </div>
-
-          <ScrollArea className="flex-1">
-            <div className="p-2 space-y-1">
-              {loading && aiConversations.length === 0 ? (
-                <div className="flex flex-col gap-2 p-2">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="h-12 w-full bg-muted/20 animate-pulse rounded-lg" />
-                  ))}
-                </div>
-              ) : aiConversations.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-8 text-center opacity-40">
-                  <Sparkles className="h-8 w-8 mb-2" />
-                  <p className="text-xs">No history yet</p>
-                </div>
-              ) : (
-                aiConversations.map((conv) => (
-                  <Button
-                    key={conv.id}
-                    variant="ghost"
-                    className={cn(
-                      "w-full justify-start gap-3 h-12 py-2 px-3 rounded-lg border border-transparent transition-all overflow-hidden",
-                      activeChat?.type === "ai" && activeChat?.conversationId === conv.id ?
-                        "bg-primary/10 text-primary border-primary/10" : "hover:bg-muted/50"
-                    )}
-                    onClick={() => onSelectChat("ai", undefined, conv.id)}
-                  >
-                    <MessageCircle className="h-4 w-4 shrink-0 opacity-60" />
-                    <div className="flex-1 min-w-0 text-left">
-                      <p className="text-xs font-medium truncate">
-                        {conv.title}
-                      </p>
-                    </div>
-                  </Button>
-                ))
-              )}
-            </div>
-          </ScrollArea>
-        </TabsContent>
-
-        <TabsContent value="chats" className="flex-1 flex flex-col mt-0 h-full overflow-hidden">
-          <div className="p-3">
+          {/* Search Contacts */}
+          <div className="p-3 border-b">
             <Input
               placeholder="Search contacts..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-9 bg-muted/50 border-none text-xs rounded-lg"
+              className="h-8 text-sm"
             />
           </div>
 
+          {/* Contacts List */}
           <ScrollArea className="flex-1">
-            <div className="p-2 space-y-1">
+            <div className="p-2">
               {loading ? (
-                <div className="flex flex-col gap-2 p-2">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="h-14 w-full bg-muted/20 animate-pulse rounded-xl" />
+                <p className="text-xs text-muted-foreground text-center py-4">
+                  Loading...
+                </p>
+              ) : filteredContacts.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-4">
+                  No contacts yet
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {filteredContacts.map((contact) => (
+                    <div key={contact.id} className="relative group">
+                      <Button
+                        variant="ghost"
+                        className={cn(
+                          "w-full justify-start gap-3 h-auto py-2 px-2 pr-10",
+                          activeChat?.type === "contact" &&
+                          activeChat?.contact?.id === contact.id &&
+                          "bg-primary/10"
+                        )}
+                        onClick={() => onSelectChat("contact", contact)}
+                      >
+                        <Avatar className="h-9 w-9">
+                          <AvatarFallback>
+                            {contact.contact_name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0 text-left">
+                          <p className="font-medium text-sm truncate">
+                            {contact.contact_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {contact.last_message || "No messages yet"}
+                          </p>
+                        </div>
+                        {contact.unread_count && contact.unread_count > 0 ? (
+                          <div className="flex items-center justify-center bg-primary text-[10px] font-bold text-primary-foreground min-w-[18px] h-[18px] px-1 rounded-full shrink-0 animate-in zoom-in duration-300">
+                            {contact.unread_count > 99 ? "99+" : contact.unread_count}
+                          </div>
+                        ) : null}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 h-8 w-8 text-muted-foreground hover:text-destructive transition-all"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (confirm(`Remove ${contact.contact_name} from contacts?`)) {
+                            await deleteContact(contact.id);
+                            loadContacts();
+                            if (activeChat?.contact?.id === contact.id) {
+                              onSelectChat("ai"); // Switch to AI chat if current contact is deleted
+                            }
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   ))}
                 </div>
-              ) : filteredContacts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-8 text-center opacity-40">
-                  <Users className="h-10 w-10 mb-2" />
-                  <p className="text-xs">No contacts yet</p>
-                </div>
-              ) : (
-                filteredContacts.map((contact) => (
-                  <Button
-                    key={contact.id}
-                    variant="ghost"
-                    className={cn(
-                      "w-full justify-start gap-3 h-16 py-2 px-3 rounded-xl border border-transparent transition-all",
-                      activeChat?.type === "contact" &&
-                        activeChat?.contact?.id === contact.id ?
-                        "bg-background shadow-sm border-primary/20" : "hover:bg-muted/50"
-                    )}
-                    onClick={() => onSelectChat("contact", contact)}
-                  >
-                    <Avatar className="h-11 w-11 shadow-sm">
-                      <AvatarFallback className="bg-muted text-muted-foreground font-bold">
-                        {contact.contact_name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .slice(0, 2)
-                          .join("")
-                          .toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0 text-left">
-                      <div className="flex justify-between items-baseline mb-0.5">
-                        <p className="font-bold text-sm truncate">
-                          {contact.contact_name}
-                        </p>
-                        {contact.last_message_at && (
-                          <span className="text-[9px] text-muted-foreground">
-                            {new Date(contact.last_message_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate opacity-80">
-                        {contact.last_message || "Start a conversation"}
-                      </p>
-                    </div>
-                  </Button>
-                ))
               )}
             </div>
           </ScrollArea>
         </TabsContent>
 
-        <TabsContent value="requests" className="flex-1 mt-0 p-4 h-full overflow-hidden">
-          <RequestManager onStatusChange={() => {
-            loadContacts()
-            loadPendingCount()
-          }} />
+        <TabsContent value="requests" className="flex-1 min-h-0 m-0 p-2 font-normal overflow-hidden">
+          <RequestManager onStatusChange={loadContacts} />
         </TabsContent>
       </Tabs>
 
-      {/* User Profile Section */}
-      <div className="p-4 border-t mt-auto bg-muted/20">
-        {user ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3 h-auto py-2 px-2 hover:bg-background/80 rounded-xl"
-              >
-                <Avatar className="h-9 w-9 border-2 border-primary/20">
-                  <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                    {user.name[0]?.toUpperCase() || "U"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 text-left min-w-0">
-                  <p className="font-bold text-sm truncate">{user.name}</p>
-                  <p className="text-[9px] text-muted-foreground truncate font-medium">
-                    {user.username ? `@${user.username}` : "Set username"} • Online
-                  </p>
-                </div>
-                <Settings className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 rounded-xl">
-              <ProfileSettings
-                onUpdate={loadUser}
-                trigger={
-                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Edit Profile</span>
-                  </DropdownMenuItem>
-                }
-              />
-              <DropdownMenuItem onClick={() => signInWithGoogle()}>
-                <LogIn className="mr-2 h-4 w-4" />
-                <span>Switch Account</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => logout()} className="text-destructive focus:text-destructive">
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Logout</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <Button
-            variant="default"
-            className="w-full justify-center gap-2 rounded-xl"
-            onClick={() => signInWithGoogle()}
-          >
-            <LogIn className="h-4 w-4" />
-            Sign in with Google
-          </Button>
-        )}
+      {/* User info at bottom */}
+      <div className="p-4 border-t bg-muted/20 mt-auto">
+        <div className="flex items-center justify-between gap-2">
+          <UserProfileCard />
+          <LogoutButton />
+        </div>
       </div>
     </div>
   )

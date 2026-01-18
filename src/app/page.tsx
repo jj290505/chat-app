@@ -8,7 +8,7 @@ export default async function Home() {
 
   if (user) {
     // Optionally redirect or show "Continue to Chat"
-    // redirect("/chat") 
+    redirect("/chat")
   }
 
   return <LandingPageNew user={user} />

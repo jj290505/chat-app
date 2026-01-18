@@ -3,17 +3,21 @@
 import React from 'react';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Zap, Users, Brain, Shield, Cloud, ArrowRight, Sparkles, CheckCircle, TrendingUp, Lock, User } from 'lucide-react';
+import { MessageCircle, Zap, Users, Brain, Shield, Cloud, ArrowRight, Sparkles, CheckCircle, TrendingUp, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { User as UserType } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
 
 const HologramSphere = dynamic(() => import('./HologramSphere'), {
   ssr: false,
   loading: () => <div className="w-full h-96 bg-slate-800/50 rounded-3xl animate-pulse" />
 });
 
-export default function LandingPageNew({ user }: { user?: UserType | null }) {
+interface LandingPageNewProps {
+  user?: User | null;
+}
+
+export default function LandingPageNew({ user }: LandingPageNewProps) {
   const [scrollY, setScrollY] = React.useState(0);
 
   React.useEffect(() => {
@@ -49,35 +53,27 @@ export default function LandingPageNew({ user }: { user?: UserType | null }) {
       {/* Navbar */}
       <nav className="fixed top-0 w-full backdrop-blur-md bg-slate-900/60 border-b border-slate-700/30 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <motion.div
-            className="flex items-center gap-3"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/30">
-              <MessageCircle className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">Nexus AI</span>
-          </motion.div>
-          <div className="flex gap-4 items-center">
-            {user ? (
-              <Link href="/chat">
-                <div className="w-10 h-10 rounded-full bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center transition-all group">
-                  <User className="w-5 h-5 text-cyan-400 group-hover:text-cyan-300 transition-colors" />
-                </div>
-              </Link>
-            ) : (
-              <>
-                <Link href="/auth">
-                  <Button variant="ghost" className="text-slate-300 hover:text-cyan-400 transition">Sign In</Button>
-                </Link>
-                <Link href="/auth">
-                  <Button className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/20">
-                    Get Started <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
-              </>
-            )}
+          <Link href="/">
+            <motion.div
+              className="flex items-center gap-3 cursor-pointer"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+            >
+              <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/30">
+                <MessageCircle className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">Nexus AI</span>
+            </motion.div>
+          </Link>
+          <div className="flex gap-4">
+            <Link href="/auth">
+              <Button variant="ghost" className="text-slate-300 hover:text-cyan-400 transition">Sign In</Button>
+            </Link>
+            <Link href="/auth">
+              <Button className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/20">
+                Get Started <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
           </div>
         </div>
       </nav>
@@ -109,9 +105,9 @@ export default function LandingPageNew({ user }: { user?: UserType | null }) {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Link href={user ? "/chat" : "/auth"}>
+              <Link href="/chat">
                 <Button className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-8 py-6 text-lg shadow-lg shadow-cyan-500/20 w-full sm:w-auto">
-                  {user ? "Continue to Chat" : "Start Chatting Now"} <Sparkles className="w-5 h-5 ml-2" />
+                  Start Chatting Now <Sparkles className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
               <Button variant="outline" className="border-cyan-500/30 text-slate-300 hover:bg-slate-800/50 px-8 py-6 text-lg">
@@ -328,9 +324,9 @@ export default function LandingPageNew({ user }: { user?: UserType | null }) {
             <p className="text-lg text-slate-300 mb-8 max-w-2xl mx-auto">
               Start chatting with Nexus AI and experience the future of conversational AI
             </p>
-            <Link href={user ? "/chat" : "/auth"}>
+            <Link href="/chat">
               <Button className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-10 py-6 text-lg shadow-lg shadow-cyan-500/30">
-                {user ? "Continue to Chat" : "Launch App Now"} <ArrowRight className="w-5 h-5 ml-2" />
+                Launch App Now <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </Link>
           </div>
@@ -348,9 +344,9 @@ export default function LandingPageNew({ user }: { user?: UserType | null }) {
             <div>
               <h4 className="text-white font-semibold mb-4">Features</h4>
               <ul className="space-y-2 text-sm text-slate-400">
-                <li><a href="#" className="hover:text-cyan-400 transition">AI Chat</a></li>
-                <li><a href="#" className="hover:text-cyan-400 transition">Contacts</a></li>
-                <li><a href="#" className="hover:text-cyan-400 transition">Real-time</a></li>
+                <li><Link href="/chat" className="hover:text-cyan-400 transition">AI Chat</Link></li>
+                <li><Link href="/chat" className="hover:text-cyan-400 transition">Contacts</Link></li>
+                <li><Link href="/chat" className="hover:text-cyan-400 transition">Real-time</Link></li>
               </ul>
             </div>
             <div>

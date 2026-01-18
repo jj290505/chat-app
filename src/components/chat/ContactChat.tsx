@@ -3,34 +3,18 @@
 import { useState, useEffect, useRef } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Phone, Video, Info, Trash2, Loader2, Paperclip, MoreVertical, Menu } from "lucide-react"
+import { Phone, Video, Info, Trash2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { getCurrentUser } from "@/services/auth"
-import { getDirectMessages, sendDirectMessage, subscribeToMessages, uploadFile, clearMessages } from "@/services/contact"
+import { getDirectMessages, sendDirectMessage, subscribeToMessages, markMessagesAsRead } from "@/services/contact"
 import { Contact, DirectMessage } from "@/services/contact"
-import { RealtimeChannel } from "@supabase/supabase-js"
-import MessageInput from "./MessageInput"
 
 interface ContactChatProps {
   contact: Contact;
-  onToggleSidebar?: () => void;
 }
 
 interface Message {
@@ -38,14 +22,12 @@ interface Message {
   sender_id: string;
   receiver_id: string;
   content: string;
-  media_url?: string | null;
-  media_type?: string | null;
   created_at: string;
   senderName?: string;
   isOwn?: boolean;
 }
 
-export default function ContactChat({ contact, onToggleSidebar }: ContactChatProps) {
+export default function ContactChat({ contact }: ContactChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [messageInput, setMessageInput] = useState("")
   const [loading, setLoading] = useState(true)
@@ -70,20 +52,20 @@ export default function ContactChat({ contact, onToggleSidebar }: ContactChatPro
 
   // Load messages and subscribe to real-time updates
   useEffect(() => {
-    if (!userId || !contact.contact_user_id) return
+    if (!userId || !contact.id) return
 
     const loadMessages = async () => {
       try {
         setLoading(true)
-        console.log('[ContactChat] Loading messages for contact:', contact.contact_user_id)
         const messages = await getDirectMessages(contact.contact_user_id)
-        console.log('[ContactChat] Loaded messages:', messages.length)
         const formattedMessages: Message[] = messages.map((msg) => ({
           ...msg,
           isOwn: msg.sender_id === userId,
           senderName: msg.sender_id === userId ? "You" : contact.contact_name,
         }))
         setMessages(formattedMessages)
+        // Mark as read when loading messages
+        await markMessagesAsRead(contact.contact_user_id)
       } catch (error) {
         console.error("Error loading messages:", error)
       } finally {
@@ -94,42 +76,46 @@ export default function ContactChat({ contact, onToggleSidebar }: ContactChatPro
     loadMessages()
 
     // Subscribe to real-time messages
-    let subscription: RealtimeChannel | null = null;
+    let subscription: any = null;
 
     const setupSubscription = async () => {
-      console.log('[ContactChat] Setting up subscription for:', contact.contact_user_id)
-      subscription = await subscribeToMessages(contact.contact_user_id, (newMessage) => {
-        console.log('[ContactChat] New message received:', newMessage)
-        setMessages((prev) => [
-          ...prev,
-          {
-            ...newMessage,
-            isOwn: newMessage.sender_id === userId,
-            senderName:
-              newMessage.sender_id === userId
-                ? "You"
-                : contact.contact_name || "Unknown",
-          },
-        ])
-      });
+      try {
+        subscription = await subscribeToMessages(contact.contact_user_id, (newMessage) => {
+          setMessages((prev) => {
+            // Check if message already exists to avoid duplicates
+            if (prev.some(msg => msg.id === newMessage.id)) {
+              return prev;
+            }
+            return [
+              ...prev,
+              {
+                ...newMessage,
+                isOwn: newMessage.sender_id === userId,
+                senderName:
+                  newMessage.sender_id === userId
+                    ? "You"
+                    : contact.contact_name || "Unknown",
+              },
+            ];
+          });
+          // Mark as read when new message arrives in open chat
+          if (newMessage.receiver_id === userId) {
+            markMessagesAsRead(contact.contact_user_id);
+          }
+        });
+      } catch (error) {
+        console.error("Error setting up message subscription:", error);
+      }
     };
 
     setupSubscription();
 
     return () => {
-      subscription?.unsubscribe();
+      if (subscription) {
+        subscription.unsubscribe();
+      }
     }
-  }, [userId, contact.contact_user_id, contact.contact_name])
-
-  const handleClearChat = async () => {
-    if (!contact.id) return
-    try {
-      await clearMessages(contact.contact_user_id)
-      setMessages([])
-    } catch (error) {
-      console.error("Error clearing chat:", error)
-    }
-  }
+  }, [userId, contact.id, contact.contact_name])
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -146,44 +132,39 @@ export default function ContactChat({ contact, onToggleSidebar }: ContactChatPro
     }
   }, [messages])
 
-  const handleSendMessage = async (content: string, isAiMode: boolean, mediaFile?: File | null) => {
-    if ((!content.trim() && !mediaFile) || !contact.contact_user_id) return
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !contact.contact_user_id || !userId) return
 
-    setSending(true)
+    const content = messageInput.trim()
+    setMessageInput("") // Clear input immediately for better UX
 
-    // Optimistic UI update - show message immediately
-    const tempMessage: Message = {
-      id: `temp-${Date.now()}`,
+    // Optimistic Update: Add message to UI immediately
+    const tempId = crypto.randomUUID()
+    const optimisticMessage: Message = {
+      id: tempId,
       sender_id: userId,
       receiver_id: contact.contact_user_id,
-      content: content.trim(),
+      content: content,
       created_at: new Date().toISOString(),
       isOwn: true,
       senderName: "You"
     }
 
-    setMessages(prev => [...prev, tempMessage])
-    setMessageInput("")
+    setMessages(prev => [...prev, optimisticMessage])
+    setSending(true)
 
     try {
-      let mediaUrl = null;
-      let mediaType = null;
-
-      if (mediaFile) {
-        mediaUrl = await uploadFile(mediaFile);
-        mediaType = mediaFile.type;
-      }
-
-      const sentMessage = await sendDirectMessage(contact.contact_user_id, content, mediaUrl, mediaType)
-
-      // Replace temp message with real one
-      setMessages(prev => prev.map(msg =>
-        msg.id === tempMessage.id ? { ...sentMessage, isOwn: true, senderName: "You" } : msg
-      ))
+      const realMessage = await sendDirectMessage(contact.contact_user_id, content)
+      // Replace optimistic message with real message to ensure consistency (ID and timestamp)
+      setMessages(prev => prev.map(msg => msg.id === tempId ? {
+        ...realMessage,
+        isOwn: true,
+        senderName: "You"
+      } : msg))
     } catch (error) {
       console.error("Error sending message:", error)
-      // Remove temp message on error
-      setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id))
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(msg => msg.id !== tempId))
     } finally {
       setSending(false)
     }
@@ -192,17 +173,9 @@ export default function ContactChat({ contact, onToggleSidebar }: ContactChatPro
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
       {/* Chat Header */}
-      <div className="h-16 border-b flex items-center justify-between px-4 md:px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 flex-shrink-0">
-        <div className="flex items-center gap-2 md:gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 rounded-xl md:hidden text-muted-foreground"
-            onClick={onToggleSidebar}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <Avatar className="h-8 w-8 md:h-9 md:w-9">
+      <div className="h-16 border-b flex items-center justify-between px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-9 w-9">
             <AvatarFallback>
               {contact.contact_name
                 .split(" ")
@@ -216,63 +189,23 @@ export default function ContactChat({ contact, onToggleSidebar }: ContactChatPro
           </div>
         </div>
 
-        <div className="flex items-center gap-1 md:gap-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9 rounded-full">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
             <Phone className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9 rounded-full hidden sm:flex">
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
             <Video className="h-4 w-4" />
           </Button>
-          <Separator orientation="vertical" className="h-4 mx-0.5 md:mx-1 hidden sm:flex" />
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <Trash2 className="mr-2 h-4 w-4 text-destructive" />
-                    <span className="text-destructive">Clear Chat</span>
-                  </DropdownMenuItem>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Clear Chat History</DialogTitle>
-                    <DialogDescription>
-                      Are you sure you want to clear all messages with {contact.contact_name}? This action cannot be undone.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="flex justify-end gap-3 mt-4">
-                    <DialogTrigger asChild>
-                      <Button variant="outline">Cancel</Button>
-                    </DialogTrigger>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="destructive"
-                        onClick={handleClearChat}
-                      >
-                        Clear Everything
-                      </Button>
-                    </DialogTrigger>
-                  </div>
-                </DialogContent>
-              </Dialog>
-              <DropdownMenuItem>
-                <Info className="mr-2 h-4 w-4" />
-                <span>View Profile</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Separator orientation="vertical" className="h-4 mx-1" />
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+            <Info className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
       {/* Messages Area */}
       <ScrollArea className="flex-1 w-full overflow-hidden" ref={scrollRef}>
-        <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 p-4 md:p-6">
+        <div className="max-w-4xl mx-auto space-y-6 p-6">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -315,29 +248,6 @@ export default function ContactChat({ contact, onToggleSidebar }: ContactChatPro
                     )}
                   >
                     {msg.content}
-                    {msg.media_url && (
-                      <div className="mt-2 rounded-lg overflow-hidden border border-white/10 bg-black/20">
-                        {msg.media_type?.startsWith("image/") ? (
-                          <img
-                            src={msg.media_url}
-                            alt="Shared media"
-                            className="max-w-full h-auto object-cover max-h-60"
-                          />
-                        ) : (
-                          <div className="p-3 flex items-center gap-2">
-                            <Paperclip className="w-4 h-4" />
-                            <a
-                              href={msg.media_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs underline hover:text-primary transition-colors truncate max-w-[150px]"
-                            >
-                              Download File
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                   <span className="text-[10px] text-muted-foreground mt-1 px-1">
                     {new Date(msg.created_at).toLocaleTimeString([], {
@@ -353,7 +263,32 @@ export default function ContactChat({ contact, onToggleSidebar }: ContactChatPro
       </ScrollArea>
 
       {/* Input Area */}
-      <MessageInput onSendMessage={handleSendMessage} />
+      <div className="border-t bg-background p-4 flex-shrink-0">
+        <div className="max-w-4xl mx-auto flex gap-3">
+          <Input
+            placeholder="Type a message..."
+            value={messageInput}
+            onChange={(e) => setMessageInput(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault()
+                handleSendMessage()
+              }
+            }}
+            disabled={sending}
+          />
+          <Button
+            onClick={handleSendMessage}
+            disabled={!messageInput.trim() || sending}
+          >
+            {sending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Send"
+            )}
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

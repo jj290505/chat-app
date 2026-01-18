@@ -18,8 +18,6 @@ CREATE TABLE direct_messages (
   sender_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   receiver_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   content TEXT NOT NULL,
-  media_url TEXT,
-  media_type TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   read_at TIMESTAMP WITH TIME ZONE
 );
@@ -63,4 +61,4 @@ CREATE POLICY "Users can send direct messages"
 
 CREATE POLICY "Users can update their messages"
   ON direct_messages FOR UPDATE
-  USING (auth.uid() = sender_id);
+  USING (auth.uid() = sender_id OR auth.uid() = receiver_id);

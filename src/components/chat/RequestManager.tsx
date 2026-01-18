@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Check, X, UserCheck, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { getPendingRequests, respondToRequest, ChatRequest } from "@/services/contact"
+import { getPendingRequests, respondToRequest, ChatRequest, subscribeToChatRequests } from "@/services/contact"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface RequestManagerProps {
@@ -29,6 +29,38 @@ export default function RequestManager({ onStatusChange }: RequestManagerProps) 
 
     useEffect(() => {
         loadRequests()
+
+        // Subscribe to real-time request updates
+        let subscription: any = null;
+
+        const setupSubscription = async () => {
+            try {
+                subscription = await subscribeToChatRequests(
+                    (newRequest) => {
+                        // New request received
+                        setRequests((prev) => [newRequest, ...prev]);
+                    },
+                    (updatedRequest) => {
+                        // Request status changed (e.g., another client accepted/rejected)
+                        if (updatedRequest.status !== "pending") {
+                            setRequests((prev) => prev.filter(r => r.id !== updatedRequest.id));
+                        } else {
+                            setRequests((prev) =>
+                                prev.map(r => r.id === updatedRequest.id ? updatedRequest : r)
+                            );
+                        }
+                    }
+                );
+            } catch (error) {
+                console.error("Error setting up subscription:", error);
+            }
+        };
+
+        setupSubscription();
+
+        return () => {
+            subscription?.unsubscribe();
+        };
     }, [])
 
     const handleResponse = async (requestId: string, status: 'accepted' | 'rejected') => {
@@ -60,42 +92,44 @@ export default function RequestManager({ onStatusChange }: RequestManagerProps) 
         <ScrollArea className="h-full">
             <div className="space-y-3 p-1">
                 {requests.map((request) => (
-                    <div key={request.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-card border rounded-xl shadow-sm">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <Avatar className="h-10 w-10 shrink-0">
-                                <AvatarFallback className="bg-primary/10 text-primary">
-                                    {request.sender_profile?.username[0].toUpperCase() || "?"}
+                    <div key={request.id} className="flex flex-col gap-2 p-3 bg-card border rounded-xl shadow-sm hover:border-primary/20 transition-colors">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <Avatar className="h-9 w-9 shrink-0 border border-primary/10">
+                                <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
+                                    {request.sender_profile?.username?.[0].toUpperCase() || "?"}
                                 </AvatarFallback>
                             </Avatar>
                             <div className="text-left min-w-0 flex-1">
-                                <p className="text-sm font-semibold truncate">@{request.sender_profile?.username}</p>
-                                <p className="text-[10px] text-muted-foreground">wants to chat</p>
+                                <p className="text-sm font-bold truncate">@{request.sender_profile?.username}</p>
+                                <p className="text-[10px] text-muted-foreground font-medium">New Chat Request</p>
                             </div>
                         </div>
-                        <div className="flex gap-2 w-full sm:w-auto">
+                        <div className="flex gap-2 w-full">
                             <Button
                                 size="sm"
                                 variant="outline"
-                                className="flex-1 sm:flex-none h-9 text-destructive hover:bg-destructive/10 border-destructive/20"
+                                className="flex-1 h-8 text-[11px] font-bold text-destructive hover:bg-destructive/10 border-destructive/10"
                                 onClick={() => handleResponse(request.id, 'rejected')}
                                 disabled={processingId === request.id}
                             >
-                                <X className="h-4 w-4 mr-1" />
-                                <span className="text-xs">Decline</span>
+                                <X className="h-3.5 w-3.5 mr-1" />
+                                Decline
                             </Button>
                             <Button
                                 size="sm"
                                 variant="default"
-                                className="flex-1 sm:flex-none h-9"
+                                className="flex-1 h-8 text-[11px] font-bold shadow-sm"
                                 onClick={() => handleResponse(request.id, 'accepted')}
                                 disabled={processingId === request.id}
                             >
                                 {processingId === request.id ? (
-                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
-                                    <Check className="h-4 w-4 mr-1" />
+                                    <>
+                                        <Check className="h-3.5 w-3.5 mr-1" />
+                                        Accept
+                                    </>
                                 )}
-                                <span className="text-xs">Accept</span>
                             </Button>
                         </div>
                     </div>
