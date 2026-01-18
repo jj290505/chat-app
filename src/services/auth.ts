@@ -45,15 +45,16 @@ export async function updateProfile(data: {
     throw new Error("User not authenticated");
   }
 
-  // Update profiles table
+  // Use upsert to create the profile if it doesn't exist, or update it if it does
   const { error } = await supabase
     .from("profiles")
-    .update({
+    .upsert({
+      id: user.id,
       username: data.username,
       full_name: data.full_name,
       avatar_url: data.avatar_url,
-    })
-    .eq("id", user.id);
+      updated_at: new Date().toISOString()
+    });
 
   if (error) {
     throw new Error(error.message || "Failed to update profile");
