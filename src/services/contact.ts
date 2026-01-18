@@ -296,41 +296,25 @@ export async function ensureContactExists(targetUserId: string) {
 
   if (!existing) {
     // Fetch profile of the target user
-    const { data: profile, error: profileErr } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", targetUserId)
-      .single();
-
-    if (profile) {
-      const name = profile.full_name || profile.username || profile.email || "User";
-      console.log(`[ensureContactExists] Creating contact row for ${name}`);
-      await supabase.from("contacts").insert({
-        user_id: user.id,
-        contact_user_id: targetUserId,
-        contact_name: name,
-        contact_email: profile.email || "",
-        contact_avatar_url: profile.avatar_url
-      });
-    }
-  } else if (existing.contact_name === "Unknown User" || existing.contact_name === "Unknown" || !existing.contact_name) {
-    // If contact exists but data is missing/corrupt, refresh it
     const { data: profile } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", targetUserId)
-      .single();
+      .maybeSingle();
 
-    if (profile) {
-      const name = profile.full_name || profile.username || profile.email || "User";
-      await supabase
-        .from("contacts")
-        .update({
-          contact_name: name,
-          contact_avatar_url: profile.avatar_url
-        })
-        .eq("id", existing.id);
-    }
+    // Even if no profile exists, create the contact row so they show up in the list!
+    const name = profile?.full_name || profile?.username || "New User";
+    const email = profile?.email || "";
+    const avatar = profile?.avatar_url || null;
+
+    console.log(`[ensureContactExists] Creating contact row for ${name}`);
+    await supabase.from("contacts").insert({
+      user_id: user.id,
+      contact_user_id: targetUserId,
+      contact_name: name,
+      contact_email: email,
+      contact_avatar_url: avatar
+    });
   }
 }
 
