@@ -50,28 +50,28 @@ export async function getContacts() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("User not authenticated");
 
-  // 1. Pre-flight sync: Ensure all accepted requests have corresponding contact rows
-  // This is now done BEFORE we fetch to ensure we have the data
   await syncAcceptedRequests();
 
-  // 2. Fetch contacts with latest profile info joined from profiles table
-  const { data: contacts, error } = await supabase
+  // 1. Fetch contacts
+  const { data: contacts, error: contactError } = await supabase
     .from("contacts")
-    .select(`
-      *,
-      contact_profile:profiles!contact_user_id (
-        username,
-        full_name,
-        avatar_url
-      )
-    `)
+    .select("*")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 
-  if (error) throw error;
+  if (contactError) throw contactError;
 
-  // 3. (Optional) Dynamically enrich with last message and unread count
+  // 2. Fetch profiles for these contacts separately (avoids join errors)
+  const contactUserIds = (contacts || []).map(c => c.contact_user_id);
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, username, full_name, avatar_url")
+    .in("id", contactUserIds);
+
+  // 3. Enriched with latest message and unread count
   const enrichedContacts = await Promise.all((contacts || []).map(async (contact) => {
+    const profile = profiles?.find(p => p.id === contact.contact_user_id);
+
     // Get unread count
     const { count: unreadCount } = await supabase
       .from("direct_messages")
@@ -80,7 +80,7 @@ export async function getContacts() {
       .eq("receiver_id", user.id)
       .is("read_at", null);
 
-    // ALWAYS fetch the latest message for each contact to ensure sidebar is fresh
+    // Get last message
     const { data: lastMsg } = await supabase
       .from("direct_messages")
       .select("content, created_at")
@@ -89,14 +89,15 @@ export async function getContacts() {
       .limit(1)
       .maybeSingle();
 
-    const lastMsgData = {
-      last_message: lastMsg?.content || contact.last_message || "No messages yet",
-      last_message_at: lastMsg?.created_at || contact.last_message_at
-    };
-
     return {
       ...contact,
-      ...lastMsgData,
+      contact_profile: profile ? {
+        username: profile.username,
+        full_name: profile.full_name,
+        avatar_url: profile.avatar_url
+      } : undefined,
+      last_message: lastMsg?.content || contact.last_message || "No messages yet",
+      last_message_at: lastMsg?.created_at || contact.last_message_at,
       unread_count: unreadCount || 0
     };
   }));
