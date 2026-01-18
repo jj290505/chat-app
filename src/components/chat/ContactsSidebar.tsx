@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { MessageCircle, Plus, Menu, X, User, Settings, LogOut, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -295,19 +295,21 @@ export default function ContactsSidebar({
                         )}
                         onClick={() => onSelectChat("contact", contact)}
                       >
-                        <Avatar className="h-9 w-9">
-                          <AvatarFallback>
-                            {contact.contact_name
+                        <Avatar className="h-9 w-9 border border-primary/10">
+                          <AvatarImage src={contact.contact_profile?.avatar_url || contact.contact_avatar_url || ""} />
+                          <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
+                            {(contact.contact_profile?.full_name || contact.contact_name)
                               .split(" ")
                               .map((n) => n[0])
-                              .join("")}
+                              .join("")
+                              .toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0 text-left">
-                          <p className="font-medium text-sm truncate">
-                            {contact.contact_name}
+                          <p className="font-bold text-sm truncate">
+                            {contact.contact_profile?.full_name || contact.contact_name}
                           </p>
-                          <p className="text-xs text-muted-foreground truncate">
+                          <p className="text-[10px] text-muted-foreground truncate font-medium">
                             {contact.last_message || "No messages yet"}
                           </p>
                         </div>

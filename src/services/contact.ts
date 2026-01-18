@@ -9,6 +9,11 @@ export interface Contact {
   last_message: string | null;
   last_message_at: string | null;
   unread_count?: number;
+  contact_profile?: {
+    username: string;
+    full_name: string;
+    avatar_url: string | null;
+  }
 }
 
 export interface Profile {
@@ -49,10 +54,17 @@ export async function getContacts() {
   // This is now done BEFORE we fetch to ensure we have the data
   await syncAcceptedRequests();
 
-  // 2. Fetch contacts with latest profile info
+  // 2. Fetch contacts with latest profile info joined from profiles table
   const { data: contacts, error } = await supabase
     .from("contacts")
-    .select("*")
+    .select(`
+      *,
+      contact_profile:profiles!contact_user_id (
+        username,
+        full_name,
+        avatar_url
+      )
+    `)
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 
@@ -636,8 +648,7 @@ export async function subscribeToContacts(
       {
         event: "UPDATE",
         schema: "public",
-        table: "contacts",
-        filter: `user_id=eq.${user.id}`,
+        table: "profiles",
       },
       (payload) => {
         onContactsChange(payload);

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Phone, Video, Info, Trash2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -175,17 +175,19 @@ export default function ContactChat({ contact }: ContactChatProps) {
       {/* Chat Header */}
       <div className="h-16 border-b flex items-center justify-between px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <Avatar className="h-9 w-9">
-            <AvatarFallback>
-              {contact.contact_name
+          <Avatar className="h-9 w-9 border border-primary/10">
+            <AvatarImage src={contact.contact_profile?.avatar_url || contact.contact_avatar_url || ""} />
+            <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
+              {(contact.contact_profile?.full_name || contact.contact_name)
                 .split(" ")
                 .map((n) => n[0])
-                .join("")}
+                .join("")
+                .toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-sm font-semibold">{contact.contact_name}</p>
-            <p className="text-[10px] text-green-500 font-medium">Online</p>
+            <p className="text-sm font-bold">{contact.contact_profile?.full_name || contact.contact_name}</p>
+            <p className="text-[10px] text-green-500 font-medium tracking-tight">Status: Online</p>
           </div>
         </div>
 
@@ -227,9 +229,10 @@ export default function ContactChat({ contact }: ContactChatProps) {
                   msg.isOwn ? "flex-row-reverse" : "flex-row"
                 )}
               >
-                <Avatar className="h-8 w-8 shrink-0">
-                  <AvatarFallback>
-                    {msg.isOwn ? "ME" : contact.contact_name[0]}
+                <Avatar className="h-8 w-8 shrink-0 border border-primary/5">
+                  <AvatarImage src={msg.isOwn ? "" : (contact.contact_profile?.avatar_url || contact.contact_avatar_url || "")} />
+                  <AvatarFallback className="bg-primary/5 text-primary text-[10px] font-bold">
+                    {msg.isOwn ? "ME" : (contact.contact_profile?.full_name || contact.contact_name)[0].toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
 
