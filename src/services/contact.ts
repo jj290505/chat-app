@@ -233,15 +233,18 @@ export async function sendChatRequest(receiverId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
+  // Use upsert to handle case where request already exists
   const { data, error } = await supabase
     .from("chat_requests")
-    .insert({
+    .upsert({
       sender_id: user.id,
       receiver_id: receiverId,
-      status: 'pending'
+      status: 'pending',
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'sender_id,receiver_id'
     })
-    .select()
-    .single();
+    .select();
 
   if (error) throw error;
   return data;
