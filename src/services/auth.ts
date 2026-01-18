@@ -53,7 +53,6 @@ export async function updateProfile(data: {
       username: data.username,
       full_name: data.full_name,
       avatar_url: data.avatar_url,
-      updated_at: new Date().toISOString()
     });
 
   if (error) {
