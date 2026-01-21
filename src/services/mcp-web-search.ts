@@ -7,6 +7,8 @@
  * - Fetch and parse web page content
  * - Get current news and trending topics
  * - Extract relevant information from URLs
+ * - **NEW** Real-time Financial Data (Crypto, Stocks, Gold/Commodities)
+ * - **NEW** Weather + Air Quality Index (AQI)
  */
 
 export interface MCPTool {
@@ -142,67 +144,60 @@ const getTrendingTopicsTool: MCPTool = {
 };
 
 /**
- * Tool 4: Get Weather
- * Get current weather information
+ * Tool 4: Get Weather (Updated with AQI)
+ * Get current weather information + Air Quality Index
  */
 const getWeatherTool: MCPTool = {
   name: "get_weather",
-  description: "Get current weather information for a location. Returns temperature, conditions, and forecast.",
+  description: "Get current weather and Air Quality Index (AQI) for any city using OpenWeather API.",
   execute: async (params: { location: string }) => {
     try {
+      const apiKey = process.env.OPENWEATHER_API_KEY;
       const { location } = params;
 
-      // Using Open-Meteo free weather API (no key needed)
-      const geoResponse = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`
-      );
+      // Fallback if no key
+      if (!apiKey) return "Error: OPENWEATHER_API_KEY is missing.";
 
-      const geoData = await geoResponse.json();
+      // 1. Get Weather & Coordinates
+      const url = `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${apiKey}&units=metric`;
+      const res = await fetch(url);
 
-      if (!geoData.results || geoData.results.length === 0) {
-        return `Location "${location}" not found`;
+      if (!res.ok) return `Weather not found for "${location}".`;
+
+      const data = await res.json();
+      const { lat, lon } = data.coord;
+
+      // 2. Get Air Quality Index (AQI)
+      let aqiResult = "N/A";
+      let aqiDescription = "Unknown";
+      try {
+        const aqiUrl = `https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${apiKey}`;
+        const aqiRes = await fetch(aqiUrl);
+        if (aqiRes.ok) {
+          const aqiData = await aqiRes.json();
+          const aqi = aqiData.list[0].main.aqi; // 1 = Good, 5 = Poor
+          aqiResult = aqi.toString();
+
+          // Map AQI number to description
+          const aqiMap: Record<number, string> = {
+            1: "Good 🟢",
+            2: "Fair 🟡",
+            3: "Moderate 🟠",
+            4: "Poor 🔴",
+            5: "Very Poor 🟣"
+          };
+          aqiDescription = aqiMap[aqi] || "Unknown";
+        }
+      } catch (e) {
+        console.error("AQI fetch failed:", e);
       }
 
-      const { latitude, longitude, name, country } = geoData.results[0];
-
-      // Get weather
-      const weatherResponse = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m&temperature_unit=celsius`
-      );
-
-      const weatherData = await weatherResponse.json();
-      const current = weatherData.current;
-
-      const weatherCodes: { [key: number]: string } = {
-        0: "Clear sky",
-        1: "Mainly clear",
-        2: "Partly cloudy",
-        3: "Overcast",
-        45: "Foggy",
-        48: "Depositing rime fog",
-        51: "Light drizzle",
-        53: "Moderate drizzle",
-        55: "Dense drizzle",
-        61: "Slight rain",
-        63: "Moderate rain",
-        65: "Heavy rain",
-        71: "Slight snow",
-        73: "Moderate snow",
-        75: "Heavy snow",
-        77: "Snow grains",
-        80: "Slight rain showers",
-        81: "Moderate rain showers",
-        82: "Violent rain showers",
-        85: "Slight snow showers",
-        86: "Heavy snow showers",
-        95: "Thunderstorm",
-        96: "Thunderstorm with slight hail",
-        99: "Thunderstorm with heavy hail",
-      };
-
-      const condition = weatherCodes[current.weather_code] || "Unknown";
-
-      return `📍 Weather in ${name}, ${country}:\n\n🌡️ Temperature: **${current.temperature_2m}°C**\n☁️ Condition: **${condition}**\n💨 Wind Speed: **${current.wind_speed_10m} km/h**`;
+      return `📍 Weather in ${data.name}, ${data.sys.country}:\n` +
+        `🌡️ Temperature: **${data.main.temp}°C** (Feels like: ${data.main.feels_like}°C)\n` +
+        `☁️ Condition: **${data.weather[0].description}**\n` +
+        `💨 Wind: **${data.wind.speed} m/s**\n` +
+        `💧 Humidity: **${data.main.humidity}%**\n` +
+        `🌫️ Air Quality (AQI): **${aqiResult} - ${aqiDescription}**`;
     } catch (error: any) {
       return `Error fetching weather: ${error.message}`;
     }
@@ -210,8 +205,51 @@ const getWeatherTool: MCPTool = {
 };
 
 /**
- * Tool 5: Get Current Date & Time
- * Get current date and time in different timezones
+ * Tool 5: Get News
+ * Get latest news using GNews API
+ */
+const getNewsTool: MCPTool = {
+  name: "get_news",
+  description: "Get latest news headlines for a topic (e.g., 'technology', 'sports', 'finance') or general news.",
+  execute: async (params: { topic?: string }) => {
+    try {
+      const apiKey = process.env.GNEWS_API_KEY;
+      if (!apiKey) return "Error: GNEWS_API_KEY is missing.";
+
+      const { topic = "general" } = params;
+      // GNews 'topic' parameter is limited (breaking-news, world, nation, business, technology, entertainment, sports, science, health)
+      // If the user asks for a specific keyword query, we should use 'q' search instead.
+
+      // Heuristic: if topic is one of the standard topics, use category param. Else search.
+      const standardTopics = ["breaking-news", "world", "nation", "business", "technology", "entertainment", "sports", "science", "health"];
+
+      let url = "";
+      if (standardTopics.includes(topic)) {
+        url = `https://gnews.io/api/v4/top-headlines?category=${topic}&token=${apiKey}&lang=en&max=5`;
+      } else {
+        // Perform a search for non-standard topics
+        url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(topic)}&token=${apiKey}&lang=en&max=5`;
+      }
+
+      const res = await fetch(url);
+      if (!res.ok) return `News not found for topic: ${topic}.`;
+
+      const data = await res.json();
+      if (!data.articles || data.articles.length === 0) return "No articles found.";
+
+      const articles = data.articles.map((a: any) =>
+        `- [${a.source.name}] **${a.title}**\n  ${a.description}\n  Link: ${a.url}`
+      ).join("\n\n");
+
+      return `📰 Top headlines for "${topic}":\n\n${articles}`;
+    } catch (error: any) {
+      return `Error fetching news: ${error.message}`;
+    }
+  },
+};
+
+/**
+ * Tool 6: Get Current Date & Time
  */
 const getCurrentDateTimeTool: MCPTool = {
   name: "get_current_datetime",
@@ -252,6 +290,80 @@ const getCurrentDateTimeTool: MCPTool = {
   },
 };
 
+/**
+ * Tool 7: Get Financial Data
+ * Real-time prices for Crypto and Stocks/Gold
+ */
+const getFinancialDataTool: MCPTool = {
+  name: "get_financial_data",
+  description: "Get real-time prices for cryptocurrencies (e.g., BTC, ETH) or stocks/commodities (e.g., AAPL, TSLA, GOLD).",
+  execute: async (params: { symbol: string; type: "crypto" | "stock" }) => {
+    try {
+      const { symbol, type } = params;
+
+      if (type === "crypto") {
+        // Use CoinGecko for crypto
+        // Need to map common symbols to ids (basic mapping)
+        const symbolMap: Record<string, string> = {
+          "BTC": "bitcoin",
+          "ETH": "ethereum",
+          "SOL": "solana",
+          "DOGE": "dogecoin",
+          "XRP": "ripple",
+          "BITCOIN": "bitcoin",
+          "ETHEREUM": "ethereum"
+        };
+
+        const id = symbolMap[symbol.toUpperCase()] || symbol.toLowerCase();
+        const url = `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd,inr&include_24hr_change=true`;
+
+        const res = await fetch(url);
+        if (!res.ok) return `Failed to fetch crypto data for ${symbol}`;
+
+        const data = await res.json();
+        if (!data[id]) return `Crypto symbol "${symbol}" not found (try full name like 'bitcoin').`;
+
+        const usd = data[id].usd;
+        const change = data[id].usd_24h_change?.toFixed(2);
+
+        return `💰 **${symbol.toUpperCase()} Price:**\n$${usd} USD (${change}% 24h)`;
+      }
+
+      if (type === "stock") {
+        // Use Yahoo Finance Chart API (unofficial but effective for basic price)
+        // GOLD symbol on Yahoo is usually 'GC=F' (Gold Futures) or 'GLD' (ETF). 
+        // Let's try to be smart about symbols.
+        let querySymbol = symbol.toUpperCase();
+        if (querySymbol === "GOLD") querySymbol = "GC=F";
+        if (querySymbol === "SILVER") querySymbol = "SI=F";
+
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${querySymbol}?interval=1d&range=1d`;
+        const res = await fetch(url);
+
+        if (!res.ok) return `Failed to fetch stock data for ${symbol}`;
+
+        const data = await res.json();
+        const result = data.chart?.result?.[0];
+
+        if (!result || !result.meta) return `Stock symbol "${symbol}" not found.`;
+
+        const price = result.meta.regularMarketPrice;
+        const prevClose = result.meta.chartPreviousClose;
+        const rawChange = ((price - prevClose) / prevClose * 100);
+        const change = rawChange.toFixed(2);
+        const currency = result.meta.currency;
+
+        return `📈 **${querySymbol} Price:**\n${price} ${currency} (${rawChange > 0 ? '+' : ''}${change}%)`;
+      }
+
+      return "Invalid type. Use 'crypto' or 'stock'.";
+
+    } catch (error: any) {
+      return `Error fetching financial data: ${error.message}`;
+    }
+  }
+};
+
 // ============================================
 // Export all Web Search MCP Tools
 // ============================================
@@ -261,7 +373,9 @@ export const WebSearchMCPTools: MCPTool[] = [
   fetchWebContentTool,
   getTrendingTopicsTool,
   getWeatherTool,
+  getNewsTool,
   getCurrentDateTimeTool,
+  getFinancialDataTool, // Added new tool
 ];
 
 export function getWebSearchMCPTools() {
@@ -279,5 +393,6 @@ export async function executeWebSearchMCPTool(
   if (!tool) {
     return `Tool "${toolName}" not found. Available tools: ${WebSearchMCPTools.map((t) => t.name).join(", ")}`;
   }
+  await new Promise(resolve => setTimeout(resolve, 500)); // Simulate slight delay for realism/prevent rate limits
   return await tool.execute(params);
 }

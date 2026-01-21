@@ -6,7 +6,9 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
-import { MessageCircle, Plus, Menu, X, User, Settings, LogOut, Trash2 } from "lucide-react"
+import { MessageCircle, Plus, Menu, X, User, Settings, LogOut, Trash2, Brain } from "lucide-react"
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import BrainManager from "./BrainManager"
 import { cn } from "@/lib/utils"
 import { getContacts, Contact, subscribeToContacts, deleteContact, subscribeToChatRequests, ensureContactExists, markMessagesAsRead, getPendingRequests } from "@/services/contact"
 import UserSearch from "./UserSearch"
@@ -30,6 +32,7 @@ export default function ContactsSidebar({
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
+  const [isBrainOpen, setIsBrainOpen] = useState(false)
 
   // Use a ref to avoid stale closures in real-time listeners
   const activeChatRef = useRef(activeChat)
@@ -39,6 +42,12 @@ export default function ContactsSidebar({
 
   const loadContacts = async () => {
     try {
+      const { data: { user } } = await createClient().auth.getUser()
+      if (!user) {
+        setLoading(false)
+        return
+      }
+
       // 1. If we have an active contact chat, mark messages as read FIRST
       if (activeChat?.type === 'contact' && activeChat.contact) {
         await markMessagesAsRead(activeChat.contact.contact_user_id)
@@ -91,7 +100,7 @@ export default function ContactsSidebar({
     const setupMessageSubscription = async () => {
       try {
         const { data: { user } } = await createClient().auth.getUser();
-        if (!user) return;
+        if (!user) return; // Guest mode - do nothing
 
         const handleRealtimeUpdate = (msg: any) => {
           const currentActive = activeChatRef.current;
@@ -223,9 +232,19 @@ export default function ContactsSidebar({
           <h2 className="font-bold text-xl tracking-tight text-white flex items-center gap-2">
             <span className="w-2 h-6 bg-primary rounded-full"></span>
             Interface
+            Interface
           </h2>
           <div className="flex gap-2">
-            {/* Extra header actions can go here */}
+            <Dialog open={isBrainOpen} onOpenChange={setIsBrainOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-950/30 rounded-full transition-all" title="Manage Knowledge Base">
+                  <Brain className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl bg-slate-950 border-white/10 text-white p-0 overflow-hidden h-[600px] flex flex-col">
+                <BrainManager />
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
         <UserSearch />

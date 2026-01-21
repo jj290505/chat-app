@@ -1,4 +1,5 @@
 import Groq from "groq-sdk";
+// import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getAvailableMCPTools, executeMCPTool } from "./mcp-supabase";
 import { getWebSearchMCPTools, executeWebSearchMCPTool } from "./mcp-web-search";
 import { getUtilityMCPTools, executeUtilityMCPTool } from "./mcp-utilities";
@@ -7,26 +8,12 @@ const groq = new Groq({
     apiKey: process.env.GROQ_API_KEY,
 });
 
+// Gemini setup commented out
+// const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+
 export interface ChatMessage {
-    role: "user" | "assistant";
+    role: "user" | "assistant" | "system" | "tool";
     content: string;
-}
-
-// Fetch current news/affairs data (can be enhanced with real API)
-async function getCurrentAffairsContext(): Promise<string> {
-    try {
-        const currentDate = new Date().toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-
-        return `As of ${currentDate}, you have knowledge of current events and world affairs. Acknowledge your knowledge cutoff date respectfully if asked about very recent events.`;
-    } catch (error) {
-        console.error("Error fetching current affairs context:", error);
-        return "You have general knowledge of world affairs and current events.";
-    }
 }
 
 export async function getChatResponseStream(
@@ -55,105 +42,144 @@ export async function getChatResponseStream(
     const webSearchToolsInfo = webSearchTools.map((tool) => `- **${tool.name}**: ${tool.description}`).join("\n");
     const utilityToolsInfo = utilityTools.map((tool) => `- **${tool.name}**: ${tool.description}`).join("\n");
 
-    const systemPrompt = `You are a highly accurate, helpful, and intelligent AI assistant for a real-time chat application (WhatsApp-style UI + Instagram-like chat structure + AI assistant features).
+    const systemPrompt = `You are a highly accurate, helpful, and intelligent AI assistant for a real-time chat application.
 User: ${userName} | Time: ${dateTime}
 
-STRICT RULES (MUST FOLLOW):
-1) DO NOT introduce yourself. Never say “Namaste! I am your AI assistant” or explain your capabilities.
-2) DO NOT write generic templates like: “My abilities”, “How I work”, “Conclusion”, “Example section” unless the user asks.
-3) Answer the user’s question directly and practically.
-4) If the user’s question is unclear or missing details, ask ONLY 1 short clarification question.
-5) Never hallucinate or invent facts. If unsure, say: “I’m not fully sure” and suggest a safe next step.
-6) Keep responses short, clear, and structured. Prefer bullets and step-by-step instructions.
+STRICT RULES:
+1) Answer the user's question directly.
+2) If you need data (weather, news, db, stock price), output the <TOOL> command immediately. Do NOT say "I will check..." first. Just output the tool.
+3) After receiving the Tool Result, provide the final answer to the user in English.
+4) **FOR TECH, SPORTS, & MARKETS:** Provide COMPREHENSIVE details. do not summarize briefly. Use bullet points, bold text for values, and show the full picture.
+5) Never hallucinate facts.
 
-7) Write in natural Hinglish (Hindi + English mix), friendly but professional.
-8) For coding questions: give working code + brief explanation + best practices.
-9) For long topics: first give a 1-line summary, then detailed steps.
-10) Do not repeat the same information again and again. Avoid filler text.
+RESPONSE FORMAT:
+- If you need to use a tool, output ONLY the tool command.
+- If you have the data, output the final answer in friendly, detailed English.
 
-RESPONSE FORMAT (DEFAULT):
-- First line: short direct answer (1–2 lines)
-- Then: steps/bullets
-- Then: example (only if useful)
+TOOLS AND PARAMETERS:
+${databaseToolsInfo}
+${webSearchToolsInfo}
+${utilityToolsInfo}
 
-SPECIAL CHAT BEHAVIOR:
-- If user says “Hi / Hello / Namaste”, reply only: “Hi! Batao kya help chahiye? 🙂”
-- If user asks for “best model”, “best prompt”, “best setup”, give clear recommendations with reasons.
-
-GOAL:
-Your responses must feel like ChatGPT: accurate, helpful, structured, and human-like.
-
-### 🛠️ CORE CAPABILITIES & TOOLS
-You have access to 15 specialized tools. Use them to provide accurate, real-time information:
-- **Database**: search_knowledge_base, get_user_conversations, search_contacts, get_recent_messages, store_knowledge
-- **Web**: web_search, fetch_web_content, get_trending_topics, get_weather, get_current_datetime
-- **Utilities**: math_calculate, unit_converter, data_statistics, json_formatter, text_statistics
-
-**TOOL FORMAT:**
+TOOL SYNTAX:
 <TOOL>tool_name</TOOL>
-<PARAMS>{"param": "value"}</PARAMS>`;
+<PARAMS>{"param_name": "value"}</PARAMS>
 
-    const messages = [
-        {
-            role: "system" as const,
-            content: systemPrompt,
-        },
-        ...history.map((msg) => ({
-            role: msg.role,
-            content: msg.content,
-        })),
-        {
-            role: "user" as const,
-            content: currentMessage,
-        },
+EXAMPLES:
+User: "Weather in Delhi?"
+Assistant: <TOOL>get_weather</TOOL><PARAMS>{"location": "Delhi"}</PARAMS>
+
+User: "Gold price?"
+Assistant: <TOOL>get_financial_data</TOOL><PARAMS>{"symbol": "GOLD", "type": "stock"}</PARAMS>
+
+User: "Bitcoin price?"
+Assistant: <TOOL>get_financial_data</TOOL><PARAMS>{"symbol": "BTC", "type": "crypto"}</PARAMS>
+
+User: "Latest tech news?"
+Assistant: <TOOL>get_news</TOOL><PARAMS>{"topic": "technology"}</PARAMS>
+
+User: "Sports updates?"
+Assistant: <TOOL>get_news</TOOL><PARAMS>{"topic": "sports"}</PARAMS>`;
+
+    let messages: any[] = [
+        { role: "system", content: systemPrompt },
+        ...history.map((msg) => ({ role: msg.role, content: msg.content })),
+        { role: "user", content: currentMessage },
     ];
 
-    const stream = await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
-        messages: messages,
-        stream: true,
-    });
-
-    return processStreamWithMCPTools(stream);
+    // Create a generator that handles multi-turn loop
+    return streamWithTools(messages);
 }
 
-async function* processStreamWithMCPTools(
-    stream: AsyncIterable<any>
-): AsyncIterable<any> {
-    let buffer = "";
+async function* streamWithTools(messages: any[]): AsyncGenerator<any, void, unknown> {
+    let keepGoing = true;
+    let turnCount = 0;
+    const MAX_TURNS = 5;
 
-    for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content || "";
-        buffer += content;
+    while (keepGoing && turnCount < MAX_TURNS) {
+        turnCount++;
 
-        const toolMatch = buffer.match(/<TOOL>([^<]+)<\/TOOL>\s*<PARAMS>([\s\S]*?)<\/PARAMS>/);
+        console.log(`[AI] Turn ${turnCount} started`);
 
-        if (toolMatch) {
-            const [fullMatch, toolName, paramsStr] = toolMatch;
+        try {
+            const stream = await groq.chat.completions.create({
+                model: "llama-3.3-70b-versatile",
+                messages: messages,
+                stream: true,
+            });
 
-            try {
-                const params = JSON.parse(paramsStr);
-                console.log(`[MCP] Executing tool: ${toolName}`);
+            let fullResponse = "";
+            let toolCallBuffer = "";
+            let isToolCall = false;
 
-                let toolResult: string;
+            for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content || "";
+                fullResponse += content;
 
-                if (["search_knowledge_base", "get_user_conversations", "search_contacts", "get_recent_messages", "store_knowledge"].includes(toolName)) {
-                    toolResult = await executeMCPTool(toolName, params);
-                } else if (["web_search", "fetch_web_content", "get_trending_topics", "get_weather", "get_current_datetime"].includes(toolName)) {
-                    toolResult = await executeWebSearchMCPTool(toolName, params);
-                } else if (["math_calculate", "unit_converter", "data_statistics", "json_formatter", "text_statistics"].includes(toolName)) {
-                    toolResult = await executeUtilityMCPTool(toolName, params);
+                // Check if we are potentially starting a tool call
+                if (content.includes("<TOOL>") || toolCallBuffer.includes("<TOOL>")) {
+                    isToolCall = true;
+                    toolCallBuffer += content;
+                } else if (!isToolCall) {
+                    // Yield normal text immediately
+                    yield chunk;
                 } else {
-                    toolResult = `Tool "${toolName}" not found`;
+                    toolCallBuffer += content;
                 }
-
-                buffer = buffer.replace(fullMatch, `\n\n📊 **[Tool: ${toolName}]** \n${toolResult}\n\n`);
-            } catch (error) {
-                console.error(`[MCP] Tool error:`, error);
-                buffer = buffer.replace(fullMatch, `\n\n❌ **[Tool Error]** Failed to execute ${toolName}\n\n`);
             }
+
+            // Post-processing the full response of this turn
+            const toolMatch = fullResponse.match(/<TOOL>([^<]+)<\/TOOL>\s*<PARAMS>([\s\S]*?)<\/PARAMS>/);
+
+            if (toolMatch) {
+                const [fullMatch, toolName, paramsStr] = toolMatch;
+                isToolCall = true;
+
+                // Notify UI that we are working
+                yield { choices: [{ delta: { content: `\n\n*Checking ${toolName}...*\n\n` } }] };
+
+                try {
+                    const params = JSON.parse(paramsStr);
+                    console.log(`[MCP] Executing tool: ${toolName}`, params);
+
+                    let toolResult = "";
+                    if (["search_knowledge_base", "get_user_conversations", "search_contacts", "get_recent_messages", "store_knowledge"].includes(toolName)) {
+                        toolResult = await executeMCPTool(toolName, params);
+                    } else if (["web_search", "fetch_web_content", "get_trending_topics", "get_weather", "get_financial_data", "get_news", "get_current_datetime"].includes(toolName)) {
+                        toolResult = await executeWebSearchMCPTool(toolName, params);
+                    } else if (["math_calculate", "unit_converter", "data_statistics", "json_formatter", "text_statistics"].includes(toolName)) {
+                        toolResult = await executeUtilityMCPTool(toolName, params);
+                    } else {
+                        toolResult = `Tool "${toolName}" not found`;
+                    }
+
+                    console.log(`[MCP] Result:`, toolResult.substring(0, 50));
+
+                    // Append the assistant's request and the tool's result to history
+                    messages.push({ role: "assistant", content: fullResponse });
+                    messages.push({ role: "user", content: `Tool Result for ${toolName}:\n${toolResult}\n\nBased on this result, please provide the final answer to the user.` });
+
+                    // Loop continues to next iteration to get the final answer
+                    keepGoing = true;
+
+                } catch (error: any) {
+                    console.error(`[MCP] Tool Execution Error:`, error);
+                    messages.push({ role: "system", content: `Tool error: ${error.message}` });
+                    keepGoing = true;
+                }
+            } else {
+                // No tool found, this is the final answer
+                // If we buffered potential tool text but it wasn't a valid tool, yield it now
+                if (isToolCall && toolCallBuffer) {
+                    yield { choices: [{ delta: { content: toolCallBuffer } }] };
+                }
+                keepGoing = false;
+            }
+        } catch (error: any) {
+            console.error("Groq Error:", error);
+            yield { choices: [{ delta: { content: `\n\n(AI Error: ${error.message})` } }] };
+            keepGoing = false;
         }
-        yield chunk;
     }
 }
 

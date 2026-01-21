@@ -51,6 +51,9 @@ export default function ChatArea() {
                 const user = await getCurrentUser()
                 if (user?.name) {
                     setUserName(user.name)
+                } else {
+                    // Guest/Not logged in - stop here to avoid errors
+                    return;
                 }
 
                 // Load last conversation
@@ -162,21 +165,17 @@ export default function ChatArea() {
                 const researchKeywords = ["latest", "news", "current", "recent", "trending", "what's", "search", "find", "research", "tell me about", "information about"]
                 const requiresResearch = researchKeywords.some(keyword => cleanMessage.toLowerCase().includes(keyword))
 
-                // Use research endpoint for queries that need current information
-                const endpoint = requiresResearch ? "/api/ai/research" : "/api/ai/chat"
+                // Use standard chat endpoint which handles tools internally
+                const endpoint = "/api/ai/chat"
 
                 const response = await fetch(endpoint, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(
-                        endpoint === "/api/ai/research"
-                            ? { message: cleanMessage }
-                            : {
-                                messages: messages.map(m => ({ role: m.role, content: m.content })),
-                                currentMessage: cleanMessage,
-                                userName: userName
-                            }
-                    )
+                    body: JSON.stringify({
+                        messages: messages.map(m => ({ role: m.role, content: m.content })),
+                        currentMessage: cleanMessage,
+                        userName: userName
+                    })
                 })
 
                 if (!response.ok) {
@@ -254,9 +253,9 @@ export default function ChatArea() {
     }
 
     return (
-        <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-950">
-            {/* Chat Header */}
-            <div className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-slate-900/50 backdrop-blur-xl sticky top-0 z-20 flex-shrink-0">
+        <div className="flex flex-col h-[100dvh] w-full overflow-hidden bg-slate-950">
+            {/* Chat Header - Fixed Height */}
+            <div className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-slate-900/50 backdrop-blur-xl shrink-0 z-20">
                 <div className="flex items-center gap-4">
                     <div className="relative">
                         <Avatar className="h-11 w-11 border-2 border-primary/20 bg-primary/10 transition-transform hover:scale-105">
@@ -489,10 +488,10 @@ export default function ChatArea() {
                 </div>
             </ScrollArea>
 
-            {/* Input Area */}
-            <div className="relative z-20">
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 to-transparent pointer-events-none -translate-y-12 h-12"></div>
-                <MessageInput onSendMessage={handleSendMessage} className="flex-shrink-0" />
+            {/* Input Area - Flex Item (Not Absolute) */}
+            <div className="shrink-0 z-20 relative">
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent pointer-events-none -translate-y-12 h-12"></div>
+                <MessageInput onSendMessage={handleSendMessage} className="w-full" />
             </div>
         </div>
     )
