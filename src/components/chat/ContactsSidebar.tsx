@@ -378,7 +378,7 @@ export default function ContactsSidebar({
                         ) : null}
                       </Button>
 
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-all duration-200">
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200">
                         <Button
                           variant="ghost"
                           size="icon"
