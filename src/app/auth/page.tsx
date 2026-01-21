@@ -82,7 +82,7 @@ export default function AuthPage() {
                         <Zap className="h-8 w-8 text-primary animate-pulse" />
                     </div>
                     <h1 className="text-4xl font-black tracking-tighter text-white text-glow-purple">NEXORA</h1>
-                    <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.3em] mt-2 opacity-70">AI Chat Assistant</p>
+                    <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.3em] mt-2 opacity-70">Real Time AI Chat Application</p>
                 </div>
 
                 <div className="glass-panel p-8 rounded-3xl relative overflow-hidden group">
