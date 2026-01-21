@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
 import { Loader2, User, AtSign, Save } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -22,7 +21,6 @@ export default function ProfileSettingsModal({ open, onOpenChange, onProfileUpda
     const [formData, setFormData] = useState({
         full_name: "",
         username: "",
-        website: "",
         avatar_url: "",
     })
 
@@ -49,7 +47,6 @@ export default function ProfileSettingsModal({ open, onOpenChange, onProfileUpda
                     setFormData({
                         full_name: data.full_name || "",
                         username: data.username || "",
-                        website: data.website || "",
                         avatar_url: data.avatar_url || "",
                     })
                 }
@@ -83,7 +80,7 @@ export default function ProfileSettingsModal({ open, onOpenChange, onProfileUpda
             onOpenChange(false)
         } catch (error) {
             console.error("Error saving profile:", error)
-            alert("Failed to save profile. Please try again.")
+            alert(`Failed to save profile: ${(error as any).message}`)
         } finally {
             setSaving(false)
         }
@@ -153,7 +150,7 @@ export default function ProfileSettingsModal({ open, onOpenChange, onProfileUpda
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="bio" className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                            <Label htmlFor="avatar_url" className="text-xs font-bold uppercase tracking-widest text-slate-500">
                                 Avatar URL
                             </Label>
                             <Input
