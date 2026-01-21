@@ -14,6 +14,7 @@ import RequestManager from "./RequestManager"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import UserProfileCard from "./UserProfileCard"
 import LogoutButton from "../auth/LogoutButton"
+import { Separator } from "@/components/ui/separator"
 
 interface ContactsSidebarProps {
   onSelectChat: (type: "ai" | "contact", contact?: Contact) => void;
@@ -215,23 +216,29 @@ export default function ContactsSidebar({
   )
 
   return (
-    <div className="w-auto min-w-[280px] max-w-[320px] md:w-72 border-r flex flex-col h-full bg-background overflow-hidden">
+    <div className="w-auto min-w-[300px] max-w-[340px] md:w-80 flex flex-col h-full bg-slate-950 border-r border-white/5 overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b space-y-3">
+      <div className="p-6 border-b border-white/5 space-y-4 bg-slate-900/40 backdrop-blur-xl">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-lg">Messages</h2>
+          <h2 className="font-bold text-xl tracking-tight text-white flex items-center gap-2">
+            <span className="w-2 h-6 bg-primary rounded-full"></span>
+            Interface
+          </h2>
+          <div className="flex gap-2">
+            {/* Extra header actions can go here */}
+          </div>
         </div>
         <UserSearch />
       </div>
 
       <Tabs defaultValue="chats" className="flex-1 flex flex-col min-h-0">
-        <div className="px-4 py-2 border-b">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="chats" className="text-xs">Chats</TabsTrigger>
-            <TabsTrigger value="requests" className="text-xs relative">
+        <div className="px-6 py-3 border-b border-white/5">
+          <TabsList className="grid w-full grid-cols-2 bg-white/5 p-1 rounded-xl h-10">
+            <TabsTrigger value="chats" className="text-xs font-bold uppercase tracking-wider data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg transition-all duration-300">Chats</TabsTrigger>
+            <TabsTrigger value="requests" className="text-xs font-bold uppercase tracking-wider data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg transition-all duration-300 relative">
               Requests
               {pendingRequestsCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground animate-in zoom-in duration-300">
+                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-lg shadow-red-900/40 border-2 border-slate-950 animate-in zoom-in duration-300">
                   {pendingRequestsCount > 99 ? "99+" : pendingRequestsCount}
                 </span>
               )}
@@ -240,102 +247,137 @@ export default function ContactsSidebar({
         </div>
 
         <TabsContent value="chats" className="flex-1 flex flex-col min-h-0 m-0">
-          {/* AI Assistant */}
-          <div className="px-2 py-2 border-b">
+          {/* AI Assistant - Enhanced Highlight */}
+          <div className="px-4 py-4 mb-2">
             <Button
               variant="ghost"
               className={cn(
-                "w-full justify-start gap-3 h-auto py-2 px-3",
-                activeChat?.type === "ai" && "bg-primary/10"
+                "w-full justify-start gap-4 h-auto py-3 px-4 rounded-2xl border border-transparent transition-all duration-300 hover:bg-white/5",
+                activeChat?.type === "ai"
+                  ? "bg-primary/10 border-primary/20 shadow-lg shadow-primary/5"
+                  : "bg-white/5"
               )}
               onClick={() => onSelectChat("ai")}
             >
-              <Avatar className="h-10 w-10">
-                <AvatarFallback>AI</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 text-left">
-                <p className="font-semibold text-sm">Nexus AI</p>
-                <p className="text-xs text-muted-foreground">Your AI Assistant</p>
+              <div className="relative">
+                <Avatar className="h-12 w-12 border-2 border-primary/20">
+                  <AvatarFallback className="bg-primary/10 text-primary font-bold">VY</AvatarFallback>
+                </Avatar>
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-slate-950 rounded-full"></div>
               </div>
+              <div className="flex-1 text-left min-w-0">
+                <p className="font-bold text-[15px] text-white tracking-tight">VYRA</p>
+                <p className="text-[11px] text-primary font-bold uppercase tracking-widest opacity-80">AI Assistant</p>
+              </div>
+              <div className="w-1.5 h-1.5 bg-primary/40 rounded-full"></div>
             </Button>
           </div>
 
-          {/* Search Contacts */}
-          <div className="p-3 border-b">
-            <Input
-              placeholder="Search contacts..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-8 text-sm"
-            />
+          <Separator className="bg-white/5 mx-6" />
+
+          {/* Search Contacts in sidebar */}
+          <div className="px-6 py-4">
+            <div className="relative group">
+              <Input
+                placeholder="Find contact..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-10 text-sm bg-white/5 border-white/10 rounded-xl pl-4 pr-10 focus:border-primary/50 transition-all placeholder:text-slate-600"
+              />
+            </div>
           </div>
 
           {/* Contacts List */}
-          <ScrollArea className="flex-1">
-            <div className="p-2">
+          <ScrollArea className="flex-1 px-4 pb-4 custom-scrollbar">
+            <div className="space-y-1.5">
               {loading ? (
-                <p className="text-xs text-muted-foreground text-center py-4">
-                  Loading...
-                </p>
+                <div className="space-y-4 p-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="flex gap-3 animate-pulse">
+                      <div className="w-10 h-10 bg-white/5 rounded-full"></div>
+                      <div className="flex-1 space-y-2 py-1">
+                        <div className="h-2 bg-white/5 rounded w-1/2"></div>
+                        <div className="h-2 bg-white/5 rounded w-3/4"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : filteredContacts.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-4">
-                  No contacts yet
-                </p>
+                <div className="text-center py-12 px-6">
+                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/10">
+                    <User className="h-6 w-6 text-slate-700" />
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium">No contacts found</p>
+                </div>
               ) : (
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   {filteredContacts.map((contact) => (
-                    <div key={contact.id} className="relative group">
+                    <div key={contact.id} className="relative group px-1">
                       <Button
                         variant="ghost"
                         className={cn(
-                          "w-full justify-start gap-3 h-auto py-2 px-2 pr-10",
+                          "w-full justify-start gap-4 h-auto py-3 px-3 rounded-2xl border border-transparent transition-all duration-300",
                           activeChat?.type === "contact" &&
-                          activeChat?.contact?.id === contact.id &&
-                          "bg-primary/10"
+                            activeChat?.contact?.id === contact.id
+                            ? "bg-white/10 border-white/5 shadow-xl"
+                            : "hover:bg-white/5"
                         )}
                         onClick={() => onSelectChat("contact", contact)}
                       >
-                        <Avatar className="h-9 w-9 border border-primary/10">
-                          <AvatarImage src={contact.contact_profile?.avatar_url || contact.contact_avatar_url || ""} />
-                          <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
-                            {(contact.contact_profile?.full_name || contact.contact_name)
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")
-                              .toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
+                        <div className="relative">
+                          <Avatar className="h-10 w-10 border border-white/10 shadow-lg">
+                            <AvatarImage src={contact.contact_profile?.avatar_url || contact.contact_avatar_url || ""} />
+                            <AvatarFallback className="bg-slate-900 border border-white/5 text-primary text-xs font-bold">
+                              {(contact.contact_profile?.full_name || contact.contact_name)
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")
+                                .toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          {/* Online indicator could go here if implemented */}
+                        </div>
                         <div className="flex-1 min-w-0 text-left">
-                          <p className="font-bold text-sm truncate">
+                          <p className="font-bold text-[14px] text-slate-100 truncate tracking-tight">
                             {contact.contact_profile?.full_name || contact.contact_name}
                           </p>
-                          <p className="text-[10px] text-muted-foreground truncate font-medium">
-                            {contact.last_message || "No messages yet"}
-                          </p>
+                          <div className="flex items-center gap-1">
+                            <p className={cn(
+                              "text-[11px] truncate transition-colors",
+                              contact.unread_count && contact.unread_count > 0
+                                ? "text-primary font-bold"
+                                : "text-slate-500 font-medium"
+                            )}>
+                              {contact.last_message || "Say hello..."}
+                            </p>
+                          </div>
                         </div>
                         {contact.unread_count && contact.unread_count > 0 ? (
-                          <div className="flex items-center justify-center bg-primary text-[10px] font-bold text-primary-foreground min-w-[18px] h-[18px] px-1 rounded-full shrink-0 animate-in zoom-in duration-300">
+                          <div className="flex items-center justify-center bg-primary text-[10px] font-bold text-primary-foreground min-w-[20px] h-[20px] px-1.5 rounded-full shrink-0 shadow-lg shadow-primary/20 animate-in zoom-in duration-300">
                             {contact.unread_count > 99 ? "99+" : contact.unread_count}
                           </div>
                         ) : null}
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 h-8 w-8 text-muted-foreground hover:text-destructive transition-all"
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          if (confirm(`Remove ${contact.contact_name} from contacts?`)) {
-                            await deleteContact(contact.id);
-                            loadContacts();
-                            if (activeChat?.contact?.id === contact.id) {
-                              onSelectChat("ai"); // Switch to AI chat if current contact is deleted
+
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-all duration-200">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (confirm(`Remove contact ${contact.contact_name}?`)) {
+                              await deleteContact(contact.id);
+                              loadContacts();
+                              if (activeChat?.contact?.id === contact.id) {
+                                onSelectChat("ai");
+                              }
                             }
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -344,14 +386,14 @@ export default function ContactsSidebar({
           </ScrollArea>
         </TabsContent>
 
-        <TabsContent value="requests" className="flex-1 min-h-0 m-0 p-2 font-normal overflow-hidden">
+        <TabsContent value="requests" className="flex-1 min-h-0 m-0 p-4 font-normal overflow-hidden bg-slate-950/50">
           <RequestManager onStatusChange={loadContacts} />
         </TabsContent>
       </Tabs>
 
       {/* User info at bottom */}
-      <div className="p-4 border-t bg-muted/20 mt-auto">
-        <div className="flex items-center justify-between gap-2">
+      <div className="p-6 border-t border-white/5 bg-slate-900/60 backdrop-blur-xl mt-auto">
+        <div className="flex items-center justify-between gap-4">
           <UserProfileCard />
           <LogoutButton />
         </div>

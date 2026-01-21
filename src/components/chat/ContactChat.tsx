@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Phone, Video, Info, Trash2, Loader2 } from "lucide-react"
+import { Phone, Video, Info, Trash2, Loader2, MessageCircle, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
@@ -171,53 +171,62 @@ export default function ContactChat({ contact }: ContactChatProps) {
   }
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-slate-950">
       {/* Chat Header */}
-      <div className="h-16 border-b flex items-center justify-between px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-9 w-9 border border-primary/10">
-            <AvatarImage src={contact.contact_profile?.avatar_url || contact.contact_avatar_url || ""} />
-            <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
-              {(contact.contact_profile?.full_name || contact.contact_name)
-                .split(" ")
-                .map((n) => n[0])
-                .join("")
-                .toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+      <div className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-slate-900/50 backdrop-blur-xl sticky top-0 z-10 flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <Avatar className="h-11 w-11 border-2 border-primary/20 transition-transform hover:scale-105">
+              <AvatarImage src={contact.contact_profile?.avatar_url || contact.contact_avatar_url || ""} />
+              <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
+                {(contact.contact_profile?.full_name || contact.contact_name)
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-slate-900 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div>
+          </div>
           <div>
-            <p className="text-sm font-bold">{contact.contact_profile?.full_name || contact.contact_name}</p>
-            <p className="text-[10px] text-green-500 font-medium tracking-tight">Status: Online</p>
+            <p className="text-base font-bold tracking-tight text-white">{contact.contact_profile?.full_name || contact.contact_name}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-[11px] text-green-400 font-bold uppercase tracking-widest">Secure Connection</p>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
-            <Phone className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
-            <Video className="h-4 w-4" />
-          </Button>
-          <Separator orientation="vertical" className="h-4 mx-1" />
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
-            <Info className="h-4 w-4" />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-white/5 p-1 rounded-full border border-white/10">
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-all">
+              <Phone className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-all">
+              <Video className="h-4 w-4" />
+            </Button>
+          </div>
+          <Separator orientation="vertical" className="h-6 mx-1 bg-white/10" />
+          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-white/50 hover:text-white hover:bg-white/10">
+            <Info className="h-5 w-5" />
           </Button>
         </div>
       </div>
 
       {/* Messages Area */}
-      <ScrollArea className="flex-1 w-full overflow-hidden" ref={scrollRef}>
-        <div className="max-w-4xl mx-auto space-y-6 p-6">
+      <ScrollArea className="flex-1 w-full overflow-hidden bg-[radial-gradient(circle_at_50%_10%,rgba(15,23,42,1)_0%,rgba(2,6,23,1)_100%)]" ref={scrollRef}>
+        <div className="max-w-4xl mx-auto space-y-8 p-8">
           {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="flex items-center justify-center h-40">
+              <Loader2 className="h-8 w-8 animate-spin text-primary opacity-50" />
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-center">
+            <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                <MessageCircle className="h-8 w-8 text-primary/40" />
+              </div>
               <div>
-                <p className="text-muted-foreground">
-                  No messages yet. Start a conversation!
-                </p>
+                <p className="text-white font-medium">Clear encryption channel</p>
+                <p className="text-xs text-slate-500">Messages are secured with end-to-end protocols</p>
               </div>
             </div>
           ) : (
@@ -225,39 +234,45 @@ export default function ContactChat({ contact }: ContactChatProps) {
               <div
                 key={msg.id}
                 className={cn(
-                  "flex items-end gap-3",
+                  "flex items-start gap-4 animate-in duration-500 slide-in-from-bottom-2 fade-in",
                   msg.isOwn ? "flex-row-reverse" : "flex-row"
                 )}
               >
-                <Avatar className="h-8 w-8 shrink-0 border border-primary/5">
-                  <AvatarImage src={msg.isOwn ? "" : (contact.contact_profile?.avatar_url || contact.contact_avatar_url || "")} />
-                  <AvatarFallback className="bg-primary/5 text-primary text-[10px] font-bold">
-                    {msg.isOwn ? "ME" : (contact.contact_profile?.full_name || contact.contact_name)[0].toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                {!msg.isOwn && (
+                  <Avatar className="h-9 w-9 shrink-0 border border-white/10 shadow-lg mt-1">
+                    <AvatarImage src={contact.contact_profile?.avatar_url || contact.contact_avatar_url || ""} />
+                    <AvatarFallback className="bg-slate-900 text-primary text-[10px] font-bold">
+                      {(contact.contact_profile?.full_name || contact.contact_name)[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
 
                 <div
                   className={cn(
-                    "flex flex-col max-w-[80%]",
-                    msg.isOwn ? "items-end" : "items-start"
+                    "flex flex-col",
+                    msg.isOwn ? "items-end" : "items-start",
+                    "max-w-[80%] md:max-w-[70%]"
                   )}
                 >
                   <div
                     className={cn(
-                      "rounded-2xl px-4 py-2.5 text-sm shadow-sm",
+                      "px-5 py-3 text-[15px] leading-relaxed transition-all shadow-xl",
                       msg.isOwn
-                        ? "bg-primary text-primary-foreground rounded-br-none"
-                        : "bg-muted text-foreground rounded-bl-none"
+                        ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-none shadow-primary/10"
+                        : "bg-slate-900 border border-white/10 text-slate-100 rounded-2xl rounded-tl-none shadow-black/50"
                     )}
                   >
                     {msg.content}
                   </div>
-                  <span className="text-[10px] text-muted-foreground mt-1 px-1">
-                    {new Date(msg.created_at).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
+                  <div className="flex items-center gap-2 mt-2 px-1">
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      {new Date(msg.created_at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    {msg.isOwn && <span className="text-[10px] text-primary/40 flex items-center gap-1">• Secure</span>}
+                  </div>
                 </div>
               </div>
             ))
@@ -266,30 +281,41 @@ export default function ContactChat({ contact }: ContactChatProps) {
       </ScrollArea>
 
       {/* Input Area */}
-      <div className="border-t bg-background p-4 flex-shrink-0">
-        <div className="max-w-4xl mx-auto flex gap-3">
-          <Input
-            placeholder="Type a message..."
-            value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault()
-                handleSendMessage()
-              }
-            }}
-            disabled={sending}
-          />
-          <Button
-            onClick={handleSendMessage}
-            disabled={!messageInput.trim() || sending}
-          >
-            {sending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              "Send"
-            )}
-          </Button>
+      <div className="relative z-20">
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 to-transparent pointer-events-none -translate-y-12 h-12"></div>
+        <div className="border-t border-white/5 bg-slate-900/60 backdrop-blur-xl p-4 md:p-6 flex-shrink-0">
+          <div className="max-w-4xl mx-auto flex items-end gap-3">
+            <div className="flex-1 relative">
+              <Input
+                placeholder="Secure message..."
+                value={messageInput}
+                onChange={(e) => setMessageInput(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSendMessage()
+                  }
+                }}
+                disabled={sending}
+                className="bg-white/5 border-white/10 focus:border-primary/50 text-white placeholder:text-slate-500 rounded-2xl h-12 pl-5 transition-all text-[15px]"
+              />
+            </div>
+            <Button
+              onClick={handleSendMessage}
+              disabled={!messageInput.trim() || sending}
+              className={cn(
+                "h-12 w-12 rounded-2xl transition-all shadow-lg",
+                messageInput.trim() ? "bg-primary text-primary-foreground shadow-primary/20 scale-100" : "bg-white/5 text-slate-500 scale-95"
+              )}
+              size="icon"
+            >
+              {sending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Send className="h-5 w-5" />
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

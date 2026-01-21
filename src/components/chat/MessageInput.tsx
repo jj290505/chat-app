@@ -144,25 +144,25 @@ export default function MessageInput({ onSendMessage, className }: MessageInputP
     }
 
     return (
-        <div className="p-2 md:p-4 bg-background border-t">
-            <div className="max-w-4xl mx-auto space-y-2 md:space-y-3">
+        <div className="p-4 md:p-6 bg-slate-950/80 backdrop-blur-2xl border-t border-white/5">
+            <div className="max-w-4xl mx-auto space-y-4">
                 {/* File Preview */}
                 {selectedFile && (
-                    <div className="flex items-center gap-3 p-2 bg-muted/40 rounded-xl border border-primary/20 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="flex items-center gap-4 p-3 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 animate-in fade-in slide-in-from-bottom-4 duration-300 shadow-2xl">
                         {filePreview ? (
-                            <div className="relative h-12 w-12 rounded-lg overflow-hidden border border-white/10">
+                            <div className="relative h-14 w-14 rounded-xl overflow-hidden border border-white/10 shadow-lg">
                                 <img src={filePreview} alt="Preview" className="h-full w-full object-cover" />
                             </div>
                         ) : (
-                            <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
-                                <Paperclip className="h-5 w-5 text-primary" />
+                            <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-lg">
+                                <Paperclip className="h-6 w-6 text-primary" />
                             </div>
                         )}
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium truncate text-foreground">{selectedFile.name}</p>
-                            <p className="text-[10px] text-muted-foreground">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                            <p className="text-sm font-bold truncate text-white tracking-tight">{selectedFile.name}</p>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{(selectedFile.size / 1024).toFixed(1)} KB • READY TO SEND</p>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-destructive/10 hover:text-destructive" onClick={removeFile}>
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-red-500/10 hover:text-red-500 transition-colors" onClick={removeFile}>
                             <X className="h-4 w-4" />
                         </Button>
                     </div>
@@ -170,8 +170,8 @@ export default function MessageInput({ onSendMessage, className }: MessageInputP
 
                 {/* Input Bar */}
                 <div className={cn(
-                    "relative flex items-end gap-2 p-2 rounded-2xl border bg-muted/20 transition-all duration-300",
-                    isAiMode && "border-primary/50 shadow-[0_0_15px_rgba(var(--primary),0.1)]"
+                    "relative flex items-end gap-3 p-3 rounded-[24px] border border-white/10 bg-white/5 transition-all duration-500 shadow-2xl",
+                    isAiMode && "border-cyan-500/50 shadow-[0_0_30px_rgba(6,182,212,0.15)] bg-slate-900/40"
                 )}>
                     <input
                         type="file"
@@ -180,41 +180,43 @@ export default function MessageInput({ onSendMessage, className }: MessageInputP
                         className="hidden"
                     />
 
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 md:h-9 md:w-9 shrink-0 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/5"
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        <Paperclip className="h-4 w-4 md:h-5 md:w-5" />
-                    </Button>
+                    <div className="flex items-center gap-1 mb-1">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 shrink-0 rounded-2xl text-slate-400 hover:text-primary hover:bg-white/5 transition-all duration-300"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            <Paperclip className="h-5 w-5" />
+                        </Button>
 
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 md:h-9 md:w-9 shrink-0 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/5">
-                                <Smile className="h-4 w-4 md:h-5 md:w-5" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-full p-0 border-none shadow-2xl mr-4 md:mr-0 z-[100]" side="top" align="start" sideOffset={10}>
-                            <EmojiPicker
-                                onEmojiClick={onEmojiClick}
-                                theme={Theme.DARK}
-                                lazyLoadEmojis={true}
-                                width={320}
-                                height={400}
-                                searchPlaceHolder="Search emojis..."
-                            />
-                        </PopoverContent>
-                    </Popover>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 rounded-2xl text-slate-400 hover:text-primary hover:bg-white/5 transition-all duration-300">
+                                    <Smile className="h-5 w-5" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0 border-none shadow-2xl z-[100] mb-4" side="top" align="start" sideOffset={12}>
+                                <EmojiPicker
+                                    onEmojiClick={onEmojiClick}
+                                    theme={Theme.DARK}
+                                    lazyLoadEmojis={true}
+                                    width={320}
+                                    height={400}
+                                    searchPlaceHolder="Locate symbol..."
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
 
-                    <div className="flex-1 relative">
+                    <div className="flex-1 relative mb-1">
                         <textarea
                             ref={textareaRef}
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder={isAiMode ? "Ask AI anything (@ai)..." : "Type a message..."}
-                            className="w-full bg-transparent border-none focus:ring-0 resize-none py-2 text-sm max-h-32 min-h-[40px] placeholder:text-muted-foreground/50 relative z-10"
+                            placeholder={isAiMode ? "Ask AI..." : "Type a message..."}
+                            className="w-full bg-transparent border-none focus:ring-0 resize-none py-2.5 text-[15px] leading-relaxed max-h-40 min-h-[44px] text-white placeholder:text-slate-600 relative z-10 transition-all"
                             rows={1}
                             onInput={(e) => {
                                 const target = e.target as HTMLTextAreaElement
@@ -223,71 +225,80 @@ export default function MessageInput({ onSendMessage, className }: MessageInputP
                             }}
                         />
                         {suggestion && (
-                            <div className="absolute top-2 left-0 w-full pointer-events-none text-sm text-muted-foreground/30 py-0 px-0 z-0">
+                            <div className="absolute top-2.5 left-0 w-full pointer-events-none text-[15px] leading-relaxed text-cyan-400/20 py-0 px-0 z-0">
                                 <span className="opacity-0 invisible">{message}</span>
-                                <span>{suggestion}</span>
-                                <span className="ml-2 text-[10px] bg-muted px-1 rounded border border-primary/10">Tab</span>
+                                <span className="animate-in fade-in duration-700">{suggestion}</span>
+                                <span className="ml-3 text-[9px] bg-cyan-500/10 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-500/20 font-bold uppercase tracking-tighter">Tab</span>
                             </div>
                         )}
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2 mb-1">
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={startListening}
                             className={cn(
-                                "h-8 w-8 md:h-9 md:w-9 shrink-0 rounded-xl transition-all",
-                                isListening ? "text-red-500 bg-red-500/10 animate-pulse" : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+                                "h-11 w-11 shrink-0 rounded-2xl transition-all duration-300 shadow-lg",
+                                isListening
+                                    ? "text-red-400 bg-red-400/10 animate-pulse border border-red-400/20"
+                                    : "text-slate-400 hover:text-primary hover:bg-white/5"
                             )}
                         >
-                            {isListening ? <MicOff className="h-4 w-4 md:h-5 md:w-5" /> : <Mic className="h-4 w-4 md:h-5 md:w-5" />}
+                            {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                         </Button>
 
                         <Button
-                            size="icon"
                             onClick={handleSend}
-                            className={cn(
-                                "h-8 w-8 md:h-9 md:w-9 shrink-0 rounded-xl transition-all",
-                                (message.trim() || selectedFile) ? "bg-primary text-primary-foreground opacity-100 shadow-lg shadow-primary/20" : "bg-muted text-muted-foreground opacity-50"
-                            )}
                             disabled={!message.trim() && !selectedFile}
+                            className={cn(
+                                "h-11 w-11 shrink-0 rounded-2xl transition-all duration-500 shadow-xl",
+                                (message.trim() || selectedFile)
+                                    ? "bg-primary text-primary-foreground scale-100 hover:scale-[1.05] active:scale-95 shadow-primary/30"
+                                    : "bg-white/5 text-slate-700 scale-95 opacity-50"
+                            )}
+                            size="icon"
                         >
-                            <Send className="h-4 w-4" />
+                            <Send className="h-5 w-5" />
                         </Button>
                     </div>
                 </div>
 
-                {/* Controls */}
-                <div className="flex items-center justify-between px-2">
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center space-x-2">
+                {/* Footer Controls */}
+                <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-white/5 backdrop-blur-md border border-white/5 shadow-inner">
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center space-x-3 bg-white/5 px-3 py-1.5 rounded-full border border-white/10 transition-all hover:bg-white/10">
                             <Switch
                                 id="ai-mode"
                                 checked={isAiMode}
                                 onCheckedChange={setIsAiMode}
-                                className="data-[state=checked]:bg-primary"
+                                className="data-[state=checked]:bg-cyan-500"
                             />
                             <label
                                 htmlFor="ai-mode"
                                 className={cn(
-                                    "text-xs font-medium flex items-center gap-1.5 transition-colors",
-                                    isAiMode ? "text-primary" : "text-muted-foreground"
+                                    "text-[11px] font-black uppercase tracking-widest flex items-center gap-2 transition-colors cursor-pointer",
+                                    isAiMode ? "text-cyan-400" : "text-slate-500"
                                 )}
                             >
-                                <Sparkles className="h-3.5 w-3.5" />
+                                <Sparkles className={cn("h-3.5 w-3.5", isAiMode && "animate-pulse")} />
                                 AI Mode
                             </label>
                         </div>
                         {isAiMode && (
-                            <span className="text-[10px] text-primary/70 animate-pulse bg-primary/5 px-2 py-0.5 rounded-full border border-primary/20">
-                                Ready to stream responses
-                            </span>
+                            <div className="flex items-center gap-2 px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-full animate-in zoom-in duration-500">
+                                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.5)]"></div>
+                                <span className="text-[9px] text-cyan-400 font-black uppercase tracking-[0.2em]">
+                                    AI Ready
+                                </span>
+                            </div>
                         )}
                     </div>
-                    <span className="text-[10px] text-muted-foreground">
-                        Press Enter to send
-                    </span>
+                    <div className="flex items-center gap-2 text-slate-600">
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Online</span>
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-800"></div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest">End-to-End Encrypted</span>
+                    </div>
                 </div>
             </div>
         </div>

@@ -101,7 +101,7 @@ export default function BrainManager({ conversationId }: BrainManagerProps) {
             <div className="p-6 border-b border-primary/10 bg-primary/5">
                 <div className="flex items-center gap-2 mb-1">
                     <Brain className="w-5 h-5 text-primary animate-pulse" />
-                    <h2 className="text-xl font-bold tracking-tight text-primary">Nexus Brain</h2>
+                    <h2 className="text-xl font-bold tracking-tight text-primary">NEXORA Brain</h2>
                 </div>
                 <p className="text-xs text-muted-foreground/80 uppercase tracking-widest">Knowledge Management Core</p>
             </div>

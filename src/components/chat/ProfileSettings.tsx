@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Settings, User, Camera, Loader2, Check, AlertCircle } from "lucide-react"
+import { Settings, User, Camera, Loader2, Check, AlertCircle, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +16,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getCurrentUser, updateProfile } from "@/services/auth"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { cn } from "@/lib/utils"
 
 interface ProfileSettingsProps {
     trigger?: React.ReactNode;
@@ -93,15 +94,15 @@ export default function ProfileSettings({ trigger, onUpdate }: ProfileSettingsPr
 
     const handleSuggestUsername = async () => {
         setIsSuggestingUsername(true)
-        const namePart = (formData.full_name || "").toLowerCase().replace(/\s+/g, '_')
-        const base = formData.username || namePart || "nexus_user"
+        const base = formData.username || formData.full_name.toLowerCase().replace(/\s+/g, '_') || "user"
         const variants = [
             `${base}_${Math.floor(Math.random() * 1000)}`,
-            `${base}_nova`,
-            `dev_${base}`,
-            `${base}_99`,
-            `${base}_prime`
+            `${base}_nexora`,
+            `the_${base}`,
+            `${base}_ai`,
+            `${base}_chat`
         ]
+        // Simulate a slight delay for "neural" feel
         await new Promise(resolve => setTimeout(resolve, 600))
         setSuggestions(variants)
         setIsSuggestingUsername(false)
@@ -111,138 +112,138 @@ export default function ProfileSettings({ trigger, onUpdate }: ProfileSettingsPr
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 {trigger || (
-                    <Button variant="ghost" size="sm" className="w-full justify-start gap-2 hover:bg-primary/10">
-                        <Settings className="h-4 w-4" />
-                        Management Center
+                    <Button variant="ghost" size="sm" className="w-full justify-start gap-2 h-10 px-4 rounded-xl hover:bg-white/5 transition-all text-slate-300 hover:text-white group">
+                        <Settings className="h-4 w-4 group-hover:rotate-90 transition-transform duration-500" />
+                        <span className="font-medium">System Configuration</span>
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] rounded-[2rem] bg-white dark:bg-[#0f1115] border-primary/20 p-0 overflow-hidden shadow-2xl">
-                <div className="bg-primary/10 p-6 border-b border-primary/5">
-                    <DialogHeader>
-                        <DialogTitle className="text-2xl font-black flex items-center gap-3 text-primary">
-                            <div className="p-2 bg-primary/20 rounded-xl">
-                                <User className="h-5 w-5" />
+            <DialogContent className="sm:max-w-[440px] rounded-3xl bg-slate-950/90 backdrop-blur-2xl border-white/10 p-0 overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+                <div className="absolute inset-0 bg-grid-white opacity-10 pointer-events-none"></div>
+
+                <div className="relative z-10 p-8">
+                    <DialogHeader className="mb-8">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30">
+                                <User className="h-4 w-4 text-primary" />
                             </div>
-                            Core Identity
-                        </DialogTitle>
-                        <DialogDescription className="text-muted-foreground font-bold text-xs uppercase tracking-tight">
-                            Configure your presence across the neural network.
+                            <DialogTitle className="text-2xl font-black tracking-tight text-white uppercase">Neural Identity</DialogTitle>
+                        </div>
+                        <DialogDescription className="text-slate-400 text-sm font-medium">
+                            Configure your digital presence across the NEXORA Network.
                         </DialogDescription>
                     </DialogHeader>
-                </div>
 
-                <div className="p-6 space-y-8">
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="relative group cursor-pointer">
-                            <Avatar className="h-32 w-32 border-[6px] border-primary/10 shadow-2xl ring-4 ring-primary/5 transition-all duration-700 group-hover:scale-105 group-hover:rotate-2">
-                                <AvatarImage src={formData.avatar_url} />
-                                <AvatarFallback className="bg-primary text-white text-5xl font-black">
-                                    {(formData.full_name || "U")[0].toUpperCase()}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-sm">
-                                <Camera className="h-8 w-8 text-white" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="space-y-6">
-                        <div className="space-y-3">
-                            <Label className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/80 flex items-center gap-2">
-                                <span className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />
-                                Neural Handle
-                            </Label>
+                    <div className="space-y-8">
+                        <div className="flex flex-col items-center gap-4">
                             <div className="relative group">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-black text-lg opacity-40 group-focus-within:opacity-100 transition-opacity">@</span>
-                                <Input
-                                    id="username"
-                                    value={formData.username}
-                                    onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase() })}
-                                    className="pl-10 h-14 bg-gray-100 dark:bg-white/5 border-2 border-transparent focus:border-primary/30 rounded-2xl transition-all font-bold text-base shadow-inner"
-                                    placeholder="handle_01"
-                                />
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 h-9 px-4 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/10 rounded-xl"
-                                    onClick={handleSuggestUsername}
-                                    disabled={isSuggestingUsername}
-                                >
-                                    {isSuggestingUsername ? <Loader2 className="h-3 w-3 animate-spin" /> : "AutoGen"}
-                                </Button>
-                            </div>
-
-                            {suggestions.length > 0 && (
-                                <div className="flex flex-wrap gap-2 pt-2 pb-1">
-                                    {suggestions.map((s) => (
-                                        <button
-                                            key={s}
-                                            type="button"
-                                            onClick={() => {
-                                                setFormData({ ...formData, username: s })
-                                                setSuggestions([])
-                                            }}
-                                            className="text-[10px] px-4 py-2 rounded-xl font-black shadow-lg transition-all active:scale-95"
-                                            style={{ backgroundColor: '#2563eb', color: 'white' }}
-                                        >
-                                            @{s}
-                                        </button>
-                                    ))}
+                                <div className="absolute -inset-1 bg-gradient-to-r from-primary to-accent rounded-full blur opacity-25 group-hover:opacity-40 transition-opacity"></div>
+                                <Avatar className="h-28 w-28 border-4 border-slate-950 shadow-2xl relative z-10">
+                                    <AvatarImage src={formData.avatar_url} />
+                                    <AvatarFallback className="bg-slate-900 text-primary text-4xl font-black italic">
+                                        {(formData.full_name || "U")[0].toUpperCase()}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 cursor-pointer backdrop-blur-sm">
+                                    <Camera className="h-8 w-8 text-white animate-pulse" />
                                 </div>
-                            )}
-                        </div>
-
-                        <div className="space-y-3">
-                            <Label className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/80 flex items-center gap-2">
-                                <span className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />
-                                Display Protocol
-                            </Label>
-                            <Input
-                                id="full_name"
-                                value={formData.full_name}
-                                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                                className="h-14 bg-gray-100 dark:bg-white/5 border-2 border-transparent focus:border-primary/30 rounded-2xl transition-all font-bold text-base px-5 shadow-inner"
-                                placeholder="Formal Designation"
-                            />
-                        </div>
-                    </div>
-
-                    {error && (
-                        <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 text-red-500 rounded-2xl py-4 border-2">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription className="text-xs font-black uppercase tracking-tight ml-2">
-                                {error}
-                            </AlertDescription>
-                        </Alert>
-                    )}
-
-                    {success && (
-                        <div className="flex items-center gap-4 text-emerald-500 bg-emerald-500/10 border-2 border-emerald-500/20 rounded-2xl p-5 animate-in zoom-in-95 duration-500">
-                            <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 shadow-lg">
-                                <Check className="h-5 w-5 stroke-[3]" />
+                                <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-primary rounded-xl flex items-center justify-center border-4 border-slate-950 z-30 shadow-lg">
+                                    <Sparkles className="h-4 w-4 text-white" />
+                                </div>
                             </div>
-                            <p className="text-xs font-black uppercase tracking-[0.1em]">Identity Upgraded!</p>
+                            <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">Active Biometric Data</p>
                         </div>
-                    )}
 
-                    <div className="flex gap-4 pt-4">
-                        <Button
-                            variant="outline"
-                            className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all"
-                            style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }}
-                            onClick={() => setOpen(false)}
-                        >
-                            Abort
-                        </Button>
-                        <Button
-                            className="flex-[2] h-14 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl hover:scale-[1.02] active:scale-95 transition-all duration-300"
-                            style={{ backgroundColor: '#059669', color: 'white', border: '2px solid rgba(16, 185, 129, 0.2)' }}
-                            onClick={handleSave}
-                            disabled={loading}
-                        >
-                            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Commit Changes"}
-                        </Button>
+                        <div className="space-y-5">
+                            <div className="space-y-2.5">
+                                <div className="flex justify-between items-center px-1">
+                                    <Label htmlFor="username" className="text-[10px] font-black uppercase tracking-widest text-slate-500">Global Call-Sign</Label>
+                                    <span className="text-[10px] font-bold text-primary animate-pulse opacity-70 uppercase tracking-tighter">Verified Link</span>
+                                </div>
+                                <div className="relative group">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 font-bold group-focus-within:text-primary transition-colors">@</span>
+                                    <Input
+                                        id="username"
+                                        value={formData.username}
+                                        onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase() })}
+                                        className="pl-10 h-14 bg-slate-900/40 border-white/5 rounded-2xl focus:border-primary/40 focus:ring-1 focus:ring-primary/20 text-white font-medium transition-all"
+                                        placeholder="cyber_phantom"
+                                    />
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 h-9 px-3 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/10 rounded-xl transition-all"
+                                        onClick={handleSuggestUsername}
+                                        disabled={isSuggestingUsername}
+                                    >
+                                        {isSuggestingUsername ? <Loader2 className="h-3 w-3 animate-spin" /> : "Reroll"}
+                                    </Button>
+                                </div>
+
+                                {suggestions.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 pt-2 animate-in fade-in slide-in-from-top-2">
+                                        {suggestions.map((s) => (
+                                            <button
+                                                key={s}
+                                                onClick={() => {
+                                                    setFormData({ ...formData, username: s })
+                                                    setSuggestions([])
+                                                }}
+                                                className="text-[10px] px-3 py-1.5 rounded-xl bg-primary/5 border border-primary/10 hover:border-primary/30 transition-all text-primary/80 font-bold hover:text-primary"
+                                            >
+                                                {s}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-2.5">
+                                <Label htmlFor="full_name" className="text-[10px] font-black uppercase tracking-widest text-slate-500 px-1">Display Designation</Label>
+                                <Input
+                                    id="full_name"
+                                    value={formData.full_name}
+                                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                                    className="h-14 bg-slate-900/40 border-white/5 rounded-2xl focus:border-primary/40 focus:ring-1 focus:ring-primary/20 text-white font-medium transition-all"
+                                    placeholder="Neural Architect"
+                                />
+                            </div>
+                        </div>
+
+                        {error && (
+                            <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 text-red-400 rounded-2xl py-3 border">
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertDescription className="text-xs font-bold uppercase tracking-wide">
+                                    Connection Error: {error}
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
+                        {success && (
+                            <div className="flex items-center gap-3 text-green-400 bg-green-500/10 border border-green-500/20 rounded-2xl p-4 animate-in fade-in slide-in-from-bottom-2">
+                                <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
+                                    <Check className="h-3 w-3" />
+                                </div>
+                                <p className="text-xs font-black uppercase tracking-widest">Neural pattern successfully synced.</p>
+                            </div>
+                        )}
+
+                        <div className="flex gap-4 pt-4 pb-8">
+                            <Button
+                                variant="outline"
+                                className="flex-1 h-14 rounded-2xl border-white/5 text-slate-400 hover:bg-white/5 hover:text-white transition-all font-bold uppercase tracking-widest text-xs"
+                                onClick={() => setOpen(false)}
+                            >
+                                Discard
+                            </Button>
+                            <Button
+                                className="flex-1 h-14 rounded-2xl btn-neon-purple font-black uppercase tracking-widest text-xs"
+                                onClick={handleSave}
+                                disabled={loading}
+                            >
+                                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Commit Changes"}
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </DialogContent>

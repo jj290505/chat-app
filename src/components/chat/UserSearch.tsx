@@ -79,7 +79,7 @@ export default function UserSearch() {
         if (!profile || (!profile.id)) return null;
 
         const username = profile.username || "unknown";
-        const fullName = profile.full_name || "Nexus User";
+        const fullName = profile.full_name || "NEXORA User";
 
         return (
             <div key={profile.id} className="flex items-center justify-between gap-3 p-4 rounded-2xl hover:bg-primary/5 transition-all border border-transparent hover:border-primary/10 group">
@@ -179,7 +179,7 @@ export default function UserSearch() {
                                             <div className="h-4 w-4 bg-primary rounded-full animate-pulse" />
                                         </div>
                                     </div>
-                                    <p className="text-[10px] text-primary/60 font-black uppercase tracking-widest animate-pulse">Scanning Nexus...</p>
+                                    <p className="text-[10px] text-primary/60 font-black uppercase tracking-widest animate-pulse">Scanning NEXORA...</p>
                                 </div>
                             ) : suggestions.length === 0 ? (
                                 <div className="text-center py-12 px-6 bg-muted/20 rounded-3xl border-2 border-dashed border-primary/5">

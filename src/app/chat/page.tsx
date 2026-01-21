@@ -34,7 +34,7 @@ export default function ChatPage() {
                     <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
                         <Menu className="h-5 w-5" />
                     </Button>
-                    <span className="font-bold text-lg bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">Nexus AI</span>
+                    <span className="font-bold text-lg bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">NEXORA</span>
                 </div>
             </div>
 
@@ -53,7 +53,7 @@ export default function ChatPage() {
             )}>
                 <div className="flex flex-col h-full w-full">
                     <div className="md:hidden flex items-center justify-between p-4 border-b">
-                        <span className="font-bold text-lg">Nexus AI</span>
+                        <span className="font-bold text-lg">NEXORA</span>
                         <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
                             <X className="h-5 w-5" />
                         </Button>
@@ -72,7 +72,7 @@ export default function ChatPage() {
                         <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mb-4">
                             <MessageCircle className="h-10 w-10 text-primary" />
                         </div>
-                        <h2 className="text-2xl font-bold">Welcome to Nexus AI</h2>
+                        <h2 className="text-2xl font-bold">Welcome to NEXORA</h2>
                         <p className="text-muted-foreground max-w-sm">
                             Select a contact from the sidebar to start messaging, or chat with our advanced AI assistant.
                         </p>
